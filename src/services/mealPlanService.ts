@@ -1,5 +1,19 @@
-import { collection, getDocs, addDoc, query, where, doc, getDoc } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  limit,
+  writeBatch,
+  getDoc,
+} from 'firebase/firestore';
 import { db, auth } from '@/config/firebaseConfig';
+import { type Meal } from '@/data/mockData';
+import { type MealPlanPreferences } from '@/components/BudgetForm';
 
 interface Ingredient {
   name?: string;
@@ -34,29 +48,101 @@ interface MealPlanResult {
   isWithinBudget: boolean;
 }
 
-const API_URL = 'http://localhost:5000/api/plans';
+export interface StoredMealPlan {
+  id: string;
+  userId: string;
+  weeklyPlan?: Array<{
+    day: string;
+    meals: Meal[];
+    totalCalories: number;
+    totalCost: number;
+  }>;
+  totalWeeklyCost?: number;
+  totalWeeklyCalories?: number;
+  preferences?: MealPlanPreferences;
+  isCurrent?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
 
-export const getCurrentMealPlan = async (userId: string) => {
-  try {
-    const response = await fetch(`${API_URL}/${userId}/current`);
-    if (!response.ok) {
-      throw new Error('Помилка при завантаженні плану');
+const PLANS_COLLECTION = 'plans';
+
+const clearCurrentPlanFlag = async (userId: string, exceptPlanId?: string) => {
+  if (!db) return;
+
+  const currentQuery = query(
+    collection(db, PLANS_COLLECTION),
+    where('userId', '==', userId),
+    where('isCurrent', '==', true)
+  );
+  const snapshot = await getDocs(currentQuery);
+  if (snapshot.empty) return;
+
+  const batch = writeBatch(db);
+  snapshot.docs.forEach(docSnap => {
+    if (docSnap.id !== exceptPlanId) {
+      batch.update(docSnap.ref, { isCurrent: false });
     }
-    const data = await response.json();
-    return data;
+  });
+  await batch.commit();
+};
+
+export const getCurrentMealPlan = async (userId: string): Promise<StoredMealPlan | null> => {
+  try {
+    if (!db || !userId) return null;
+
+    const currentQuery = query(
+      collection(db, PLANS_COLLECTION),
+      where('userId', '==', userId),
+      where('isCurrent', '==', true),
+      limit(1)
+    );
+    const snapshot = await getDocs(currentQuery);
+
+    if (!snapshot.empty) {
+      const docSnap = snapshot.docs[0];
+      return { id: docSnap.id, ...docSnap.data() } as StoredMealPlan;
+    }
+
+    const fallbackQuery = query(
+      collection(db, PLANS_COLLECTION),
+      where('userId', '==', userId)
+    );
+    const allPlans = await getDocs(fallbackQuery);
+    if (allPlans.empty) return null;
+
+    const sorted = allPlans.docs
+      .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as StoredMealPlan))
+      .sort((a, b) => {
+        const aTime = String(a.updatedAt || a.createdAt || '');
+        const bTime = String(b.updatedAt || b.createdAt || '');
+        return bTime.localeCompare(aTime);
+      });
+
+    return sorted[0];
   } catch (error) {
     console.error(error);
     return null;
   }
 };
 
-export const getAllMealPlans = async (userId: string) => {
+export const getAllMealPlans = async (userId: string): Promise<StoredMealPlan[]> => {
   try {
-    const response = await fetch(`${API_URL}/${userId}`);
-    if (!response.ok) {
-      throw new Error('Помилка при завантаженні планів');
-    }
-    return await response.json();
+    if (!db || !userId) return [];
+
+    const plansQuery = query(
+      collection(db, PLANS_COLLECTION),
+      where('userId', '==', userId)
+    );
+    const snapshot = await getDocs(plansQuery);
+
+    return snapshot.docs
+      .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as StoredMealPlan))
+      .sort((a, b) => {
+        const aTime = String(a.createdAt || '');
+        const bTime = String(b.createdAt || '');
+        return bTime.localeCompare(aTime);
+      });
   } catch (error) {
     console.error(error);
     return [];
@@ -65,22 +151,29 @@ export const getAllMealPlans = async (userId: string) => {
 
 export const saveMealPlan = async (planData: Record<string, unknown>) => {
   try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...planData,
-        isCurrent: true,
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Помилка при збереженні плану');
+    if (!db) {
+      throw new Error('Firestore не ініціалізовано');
     }
-    
-    return await response.json();
+
+    const userId = planData.userId as string;
+    if (!userId) {
+      throw new Error('userId обовʼязковий');
+    }
+
+    const isCurrent = planData.isCurrent !== false;
+    if (isCurrent) {
+      await clearCurrentPlanFlag(userId);
+    }
+
+    const now = new Date().toISOString();
+    const docRef = await addDoc(collection(db, PLANS_COLLECTION), {
+      ...planData,
+      isCurrent,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return { id: docRef.id, ...planData, isCurrent };
   } catch (error) {
     console.error(error);
     return null;
@@ -89,19 +182,24 @@ export const saveMealPlan = async (planData: Record<string, unknown>) => {
 
 export const updateMealPlan = async (planId: string, planData: Record<string, unknown>) => {
   try {
-    const response = await fetch(`${API_URL}/${planId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(planData),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Помилка при оновленні плану');
+    if (!db) {
+      throw new Error('Firestore не ініціалізовано');
     }
-    
-    return await response.json();
+
+    if (planData.isCurrent) {
+      const planDoc = await getDoc(doc(db, PLANS_COLLECTION, planId));
+      const userId = planDoc.data()?.userId as string | undefined;
+      if (userId) {
+        await clearCurrentPlanFlag(userId, planId);
+      }
+    }
+
+    await updateDoc(doc(db, PLANS_COLLECTION, planId), {
+      ...planData,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { id: planId, ...planData };
   } catch (error) {
     console.error(error);
     return null;
@@ -110,10 +208,9 @@ export const updateMealPlan = async (planId: string, planData: Record<string, un
 
 export const deleteMealPlan = async (planId: string) => {
   try {
-    const response = await fetch(`${API_URL}/${planId}`, {
-      method: 'DELETE',
-    });
-    return response.ok;
+    if (!db) return false;
+    await deleteDoc(doc(db, PLANS_COLLECTION, planId));
+    return true;
   } catch (error) {
     console.error(error);
     return false;
@@ -129,10 +226,10 @@ export const MealPlanService = {
       }
 
       const querySnapshot = await getDocs(collection(db, 'recipes'));
-      const allRecipes: Recipe[] = querySnapshot.docs.map(doc => {
-        const data = doc.data();
+      const allRecipes: Recipe[] = querySnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
         return {
-          id: doc.id,
+          id: docSnap.id,
           ...data,
           priceEstimate: Number(data.priceEstimate || data.price || data.budgetPrice || 0),
           title: data.title || data.name || 'Рецепт без назви',
@@ -264,4 +361,3 @@ export const MealPlanService = {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 };
-

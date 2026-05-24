@@ -66,8 +66,8 @@ const MealPlanner = () => {
 
       try {
         const plan = await getCurrentMealPlan(user.id);
-        if (plan) {
-          setGeneratedPlan(plan);
+        if (plan?.weeklyPlan && plan.preferences) {
+          setGeneratedPlan(plan as GeneratedPlan);
         }
       } catch (error) {
         console.error('Помилка завантаження плану:', error);
