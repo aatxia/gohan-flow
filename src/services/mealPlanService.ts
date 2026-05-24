@@ -5,11 +5,8 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  query,
-  where,
-  limit,
-  writeBatch,
   getDoc,
+  setDoc,
 } from 'firebase/firestore';
 import { db, auth } from '@/config/firebaseConfig';
 import { type Meal } from '@/data/mockData';
@@ -65,61 +62,33 @@ export interface StoredMealPlan {
   updatedAt?: string;
 }
 
-const PLANS_COLLECTION = 'plans';
+const userDocRef = (userId: string) => doc(db!, 'users', userId);
 
-const clearCurrentPlanFlag = async (userId: string, exceptPlanId?: string) => {
-  if (!db) return;
+const mapUserDocToMealPlan = (userId: string, data: Record<string, unknown>): StoredMealPlan | null => {
+  const currentMealPlan = data.currentMealPlan as StoredMealPlan | undefined;
+  if (!currentMealPlan?.weeklyPlan) return null;
 
-  const currentQuery = query(
-    collection(db, PLANS_COLLECTION),
-    where('userId', '==', userId),
-    where('isCurrent', '==', true)
-  );
-  const snapshot = await getDocs(currentQuery);
-  if (snapshot.empty) return;
-
-  const batch = writeBatch(db);
-  snapshot.docs.forEach(docSnap => {
-    if (docSnap.id !== exceptPlanId) {
-      batch.update(docSnap.ref, { isCurrent: false });
-    }
-  });
-  await batch.commit();
+  return {
+    id: userId,
+    userId,
+    weeklyPlan: currentMealPlan.weeklyPlan,
+    totalWeeklyCost: currentMealPlan.totalWeeklyCost,
+    totalWeeklyCalories: currentMealPlan.totalWeeklyCalories,
+    preferences: currentMealPlan.preferences,
+    isCurrent: true,
+    createdAt: (data.currentMealPlanCreatedAt as string) || undefined,
+    updatedAt: (data.currentMealPlanUpdatedAt as string) || undefined,
+  };
 };
 
 export const getCurrentMealPlan = async (userId: string): Promise<StoredMealPlan | null> => {
   try {
     if (!db || !userId) return null;
 
-    const currentQuery = query(
-      collection(db, PLANS_COLLECTION),
-      where('userId', '==', userId),
-      where('isCurrent', '==', true),
-      limit(1)
-    );
-    const snapshot = await getDocs(currentQuery);
+    const snapshot = await getDoc(userDocRef(userId));
+    if (!snapshot.exists()) return null;
 
-    if (!snapshot.empty) {
-      const docSnap = snapshot.docs[0];
-      return { id: docSnap.id, ...docSnap.data() } as StoredMealPlan;
-    }
-
-    const fallbackQuery = query(
-      collection(db, PLANS_COLLECTION),
-      where('userId', '==', userId)
-    );
-    const allPlans = await getDocs(fallbackQuery);
-    if (allPlans.empty) return null;
-
-    const sorted = allPlans.docs
-      .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as StoredMealPlan))
-      .sort((a, b) => {
-        const aTime = String(a.updatedAt || a.createdAt || '');
-        const bTime = String(b.updatedAt || b.createdAt || '');
-        return bTime.localeCompare(aTime);
-      });
-
-    return sorted[0];
+    return mapUserDocToMealPlan(userId, snapshot.data());
   } catch (error) {
     console.error(error);
     return null;
@@ -127,89 +96,80 @@ export const getCurrentMealPlan = async (userId: string): Promise<StoredMealPlan
 };
 
 export const getAllMealPlans = async (userId: string): Promise<StoredMealPlan[]> => {
-  try {
-    if (!db || !userId) return [];
-
-    const plansQuery = query(
-      collection(db, PLANS_COLLECTION),
-      where('userId', '==', userId)
-    );
-    const snapshot = await getDocs(plansQuery);
-
-    return snapshot.docs
-      .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as StoredMealPlan))
-      .sort((a, b) => {
-        const aTime = String(a.createdAt || '');
-        const bTime = String(b.createdAt || '');
-        return bTime.localeCompare(aTime);
-      });
-  } catch (error) {
-    console.error(error);
-    return [];
-  }
+  const current = await getCurrentMealPlan(userId);
+  return current ? [current] : [];
 };
 
 export const saveMealPlan = async (planData: Record<string, unknown>) => {
+  if (!db) {
+    throw new Error('Firestore не ініціалізовано');
+  }
+
+  const userId = planData.userId as string;
+  if (!userId) {
+    throw new Error('userId обовʼязковий');
+  }
+
+  const now = new Date().toISOString();
+  const currentMealPlan = {
+    weeklyPlan: planData.weeklyPlan,
+    totalWeeklyCost: planData.totalWeeklyCost,
+    totalWeeklyCalories: planData.totalWeeklyCalories,
+    preferences: planData.preferences,
+  };
+
+  const userRef = userDocRef(userId);
+  const existing = await getDoc(userRef);
+
+  const payload: Record<string, unknown> = {
+    currentMealPlan,
+    currentMealPlanUpdatedAt: now,
+    ...(existing.exists() && existing.data()?.currentMealPlanCreatedAt
+      ? {}
+      : { currentMealPlanCreatedAt: now }),
+  };
+
+  if (existing.exists()) {
+    await updateDoc(userRef, payload);
+  } else {
+    await setDoc(userRef, payload, { merge: true });
+  }
+
   try {
-    if (!db) {
-      throw new Error('Firestore не ініціалізовано');
-    }
-
-    const userId = planData.userId as string;
-    if (!userId) {
-      throw new Error('userId обовʼязковий');
-    }
-
-    const isCurrent = planData.isCurrent !== false;
-    if (isCurrent) {
-      await clearCurrentPlanFlag(userId);
-    }
-
-    const now = new Date().toISOString();
-    const docRef = await addDoc(collection(db, PLANS_COLLECTION), {
-      ...planData,
-      isCurrent,
+    await addDoc(collection(db, 'plans'), {
+      userId,
+      ...currentMealPlan,
+      isCurrent: planData.isCurrent !== false,
       createdAt: now,
       updatedAt: now,
     });
-
-    return { id: docRef.id, ...planData, isCurrent };
-  } catch (error) {
-    console.error(error);
-    return null;
+  } catch (archiveError) {
+    console.warn('Архів плану не збережено (можливо немає прав на plans):', archiveError);
   }
+
+  return {
+    id: userId,
+    userId,
+    ...currentMealPlan,
+    isCurrent: true,
+    updatedAt: now,
+  };
 };
 
 export const updateMealPlan = async (planId: string, planData: Record<string, unknown>) => {
-  try {
-    if (!db) {
-      throw new Error('Firestore не ініціалізовано');
-    }
-
-    if (planData.isCurrent) {
-      const planDoc = await getDoc(doc(db, PLANS_COLLECTION, planId));
-      const userId = planDoc.data()?.userId as string | undefined;
-      if (userId) {
-        await clearCurrentPlanFlag(userId, planId);
-      }
-    }
-
-    await updateDoc(doc(db, PLANS_COLLECTION, planId), {
-      ...planData,
-      updatedAt: new Date().toISOString(),
-    });
-
-    return { id: planId, ...planData };
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
+  const userId = (planData.userId as string) || planId;
+  return saveMealPlan({ ...planData, userId });
 };
 
 export const deleteMealPlan = async (planId: string) => {
   try {
     if (!db) return false;
-    await deleteDoc(doc(db, PLANS_COLLECTION, planId));
+
+    const userRef = userDocRef(planId);
+    await updateDoc(userRef, {
+      currentMealPlan: null,
+      currentMealPlanUpdatedAt: new Date().toISOString(),
+    });
     return true;
   } catch (error) {
     console.error(error);

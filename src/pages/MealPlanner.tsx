@@ -438,12 +438,17 @@ const MealPlanner = () => {
                             description: 'Your meal plan has been saved. Shopping list will be updated automatically.',
                           });
                           
-                          // Створити нотифікацію про нагадування списку покупок
                           await createNotification({
                             userId: user.id,
                             type: 'shopping',
                             title: 'Shopping List Updated',
                             message: 'Your shopping list has been updated based on your new meal plan. Check it out!',
+                          });
+                        } else {
+                          toast({
+                            title: 'Error',
+                            description: 'Failed to confirm plan. Please try again.',
+                            variant: 'destructive',
                           });
                         }
                       } catch (error) {
