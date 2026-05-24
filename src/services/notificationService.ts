@@ -1,8 +1,9 @@
 import { collection, getDocs, addDoc, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebaseConfig';
+import { type Notification } from '@/data/mockData';
 
 export const NotificationService = {
-  getNotifications: async (userId: string) => {
+  getNotifications: async (userId: string): Promise<Notification[]> => {
     try {
       if (!db) {
         console.error('❌ Firestore не ініціалізовано');
@@ -18,10 +19,17 @@ export const NotificationService = {
 
       const querySnapshot = await getDocs(q);
       
-      const notifications = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const notifications: Notification[] = querySnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          type: (data.type as Notification['type']) || 'system',
+          title: data.title || '',
+          message: data.message || '',
+          read: Boolean(data.read ?? data.isRead),
+          createdAt: data.createdAt || new Date().toISOString(),
+        };
+      });
 
       console.log(`✅ Завантажено ${notifications.length} нотифікацій для користувача ${userId}`);
       return notifications;

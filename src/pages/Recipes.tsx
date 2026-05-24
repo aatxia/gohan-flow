@@ -163,7 +163,7 @@ const Recipes = () => {
     const recipeData = {
       name: formData.get('name') as string,
       description: formData.get('description') as string,
-      type: formData.get('type') as string || 'dinner',
+      type: (formData.get('type') as Recipe['type']) || 'dinner',
       prepTime: parseInt(formData.get('prepTime') as string) || 0,
       cookTime: parseInt(formData.get('cookTime') as string) || 0,
       ingredients: (formData.get('ingredients') as string).split('\n').map(line => ({
@@ -174,7 +174,7 @@ const Recipes = () => {
       instructions: (formData.get('instructions') as string).split('\n').filter(line => line.trim()),
       authorId: user.id,
       authorName: user.name,
-      status: 'pending',
+      status: 'pending' as const,
       calories: 0,
       protein: 0,
       carbs: 0,

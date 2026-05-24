@@ -1,8 +1,9 @@
 import { collection, getDocs, addDoc, doc, updateDoc, getDoc, arrayUnion, arrayRemove, increment, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/config/firebaseConfig';
+import { type Recipe } from '@/data/mockData';
 
 const RECIPES_COLLECTION = 'recipes';
-export const getAllRecipes = async () => {
+export const getAllRecipes = async (): Promise<Recipe[]> => {
   try {
     if (!db) {
       throw new Error("Firestore не ініціалізовано! Перевірте firebaseConfig.ts");
@@ -11,34 +12,35 @@ export const getAllRecipes = async () => {
     const recipesCollection = collection(db, RECIPES_COLLECTION);
     const querySnapshot = await getDocs(recipesCollection);
     
-    const recipes = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      
+    const recipes: Recipe[] = querySnapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      const mealType = data.type as Recipe['type'];
+      const validTypes: Recipe['type'][] = ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'];
+      const status = data.status as Recipe['status'];
+      const validStatuses: Recipe['status'][] = ['published', 'pending', 'draft'];
+
       return {
-        id: doc.id,
-        ...data,
+        id: docSnap.id,
         name: data.name || data.title || 'Рецепт без назви',
-        title: data.title || data.name || 'Рецепт без назви',
+        description: data.description || '',
+        type: validTypes.includes(mealType) ? mealType : 'dinner',
         calories: data.calories || 0,
         protein: data.protein || 0,
         carbs: data.carbs || 0,
         fat: data.fat || 0,
         fiber: data.fiber || 0,
         price: data.price || data.budgetPrice || 0,
-        image: data.image || 'https://via.placeholder.com/300',
         ingredients: data.ingredients || [],
         instructions: data.instructions || [],
-        tags: data.tags || [],
-        comments: data.comments || [],
-        likes: data.likes || 0,
         prepTime: data.prepTime || 0,
         cookTime: data.cookTime || data.cookingTime || 0,
         servings: data.servings || 1,
-        description: data.description || '',
-        type: data.type || 'dinner',
-        status: data.status || 'published',
+        tags: data.tags || [],
         authorId: data.authorId || '',
         authorName: data.authorName || 'Невідомий автор',
+        likes: data.likes || 0,
+        comments: data.comments || [],
+        status: validStatuses.includes(status) ? status : 'published',
         createdAt: data.createdAt || new Date().toISOString(),
       };
     });
@@ -54,14 +56,14 @@ export const getAllRecipes = async () => {
 export const addRecipe = async (recipeData: {
   name: string;
   description: string;
-  type: string;
+  type: Recipe['type'];
   prepTime: number;
   cookTime: number;
   ingredients: Array<{ name: string; quantity: string; price: number }>;
   instructions: string[];
   authorId: string;
   authorName: string;
-  status?: string;
+  status?: Recipe['status'];
   calories?: number;
   protein?: number;
   carbs?: number;
@@ -78,7 +80,7 @@ export const addRecipe = async (recipeData: {
     content: string;
     createdAt: string;
   }>;
-}) => {
+}): Promise<Recipe | null> => {
   try {
     if (!db) {
       console.error('❌ Firestore не ініціалізовано');
@@ -86,19 +88,22 @@ export const addRecipe = async (recipeData: {
     }
 
     const recipesCollection = collection(db, RECIPES_COLLECTION);
-    
+    const createdAt = new Date().toISOString();
+    const status = recipeData.status || 'pending';
+
     const firestoreData = {
       ...recipeData,
       title: recipeData.name,
       likes: recipeData.likes || 0,
       views: 0,
       comments: recipeData.comments || [],
-      createdAt: new Date().toISOString(),
+      createdAt,
       cookingTime: recipeData.prepTime + recipeData.cookTime,
       budgetPrice: recipeData.price || 0,
       isPublic: true,
       likedBy: [],
       commentsCount: 0,
+      status,
     };
 
     const docRef = await addDoc(recipesCollection, firestoreData);
@@ -107,7 +112,27 @@ export const addRecipe = async (recipeData: {
     
     return {
       id: docRef.id,
-      ...firestoreData,
+      name: recipeData.name,
+      description: recipeData.description,
+      type: recipeData.type,
+      calories: recipeData.calories || 0,
+      protein: recipeData.protein || 0,
+      carbs: recipeData.carbs || 0,
+      fat: recipeData.fat || 0,
+      fiber: recipeData.fiber || 0,
+      price: recipeData.price || 0,
+      ingredients: recipeData.ingredients,
+      instructions: recipeData.instructions,
+      prepTime: recipeData.prepTime,
+      cookTime: recipeData.cookTime,
+      servings: recipeData.servings || 1,
+      tags: recipeData.tags || [],
+      authorId: recipeData.authorId,
+      authorName: recipeData.authorName,
+      likes: recipeData.likes || 0,
+      comments: recipeData.comments || [],
+      status,
+      createdAt,
     };
   } catch (error) {
     console.error("❌ Помилка при додаванні рецепту:", error);
