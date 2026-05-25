@@ -373,8 +373,12 @@ const MealPlanner = () => {
     if (!generatedPlan) return;
 
     try {
-      const { default: jsPDF } = await import('jspdf');
+      const jsPDFModule = await import('jspdf');
+      const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF;
       const doc = new jsPDF();
+
+      const num = (v: unknown) => Number(v) || 0;
+      const str = (v: unknown) => String(v ?? '');
 
       doc.setFontSize(20);
       doc.text('Weekly Meal Plan', 105, 20, { align: 'center' });
@@ -382,10 +386,10 @@ const MealPlanner = () => {
       doc.setFontSize(10);
       doc.setTextColor(120, 120, 120);
       const dietLabel = generatedPlan.preferences.dietaryPreference !== 'none'
-        ? generatedPlan.preferences.dietaryPreference
+        ? str(generatedPlan.preferences.dietaryPreference)
         : 'No restriction';
       doc.text(
-        `${dietLabel} | ${generatedPlan.preferences.mealsPerDay} meals/day | Budget: $${generatedPlan.preferences.budget} ${generatedPlan.preferences.budgetPeriod}`,
+        `${dietLabel} | ${num(generatedPlan.preferences.mealsPerDay)} meals/day | Budget: $${num(generatedPlan.preferences.budget)} ${str(generatedPlan.preferences.budgetPeriod)}`,
         105, 28, { align: 'center' }
       );
       doc.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 34, { align: 'center' });
@@ -393,13 +397,13 @@ const MealPlanner = () => {
       doc.setFontSize(10);
       doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'bold');
-      doc.text(`Weekly Cost: $${generatedPlan.totalWeeklyCost.toFixed(2)}`, 14, 44);
-      doc.text(`Avg Calories/Day: ${Math.round(generatedPlan.totalWeeklyCalories / 7)}`, 105, 44);
-      doc.text(`Total Meals: ${generatedPlan.weeklyPlan.reduce((s, d) => s + d.meals.length, 0)}`, 170, 44);
+      doc.text(`Weekly Cost: $${num(generatedPlan.totalWeeklyCost).toFixed(2)}`, 14, 44);
+      doc.text(`Avg Calories/Day: ${Math.round(num(generatedPlan.totalWeeklyCalories) / 7)}`, 105, 44);
+      doc.text(`Total Meals: ${(generatedPlan.weeklyPlan || []).reduce((s: number, d: DayPlan) => s + (d.meals?.length || 0), 0)}`, 170, 44);
 
       let y = 56;
 
-      for (const dayPlan of generatedPlan.weeklyPlan) {
+      for (const dayPlan of (generatedPlan.weeklyPlan || [])) {
         if (y > 250) {
           doc.addPage();
           y = 20;
@@ -410,32 +414,34 @@ const MealPlanner = () => {
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
-        doc.text(dayPlan.day, 16, y);
+        doc.text(str(dayPlan.day), 16, y);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.text(`${dayPlan.totalCalories} cal | $${dayPlan.totalCost.toFixed(2)}`, 180, y, { align: 'right' });
+        doc.text(`${num(dayPlan.totalCalories)} cal | $${num(dayPlan.totalCost).toFixed(2)}`, 180, y, { align: 'right' });
         y += 8;
 
         doc.setFontSize(10);
-        for (const meal of dayPlan.meals) {
+        for (const meal of (dayPlan.meals || [])) {
           if (y > 275) {
             doc.addPage();
             y = 20;
           }
 
+          const mealType = str(meal.type);
           doc.setFont('helvetica', 'bold');
-          doc.text(`${meal.type.charAt(0).toUpperCase() + meal.type.slice(1)}: ${meal.name}`, 18, y);
+          doc.text(`${mealType.charAt(0).toUpperCase() + mealType.slice(1)}: ${str(meal.name)}`, 18, y);
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(9);
-          doc.text(`${meal.calories} cal | $${meal.price.toFixed(2)} | ${meal.prepTime} min prep`, 180, y, { align: 'right' });
+          doc.text(`${num(meal.calories)} cal | $${num(meal.price).toFixed(2)} | ${num(meal.prepTime)} min prep`, 180, y, { align: 'right' });
           doc.setFontSize(10);
           y += 5;
 
-          if (meal.ingredients && meal.ingredients.length > 0) {
+          const ingredients = meal.ingredients || [];
+          if (ingredients.length > 0) {
             doc.setFontSize(8);
             doc.setTextColor(100, 100, 100);
-            const ingredientNames = meal.ingredients.map(i => i.name).join(', ');
-            const lines = doc.splitTextToSize(`Ingredients: ${ingredientNames}`, 170);
+            const ingredientNames = ingredients.map((i: { name: string }) => str(i.name)).join(', ');
+            const lines: string[] = doc.splitTextToSize(`Ingredients: ${ingredientNames}`, 170);
             for (const line of lines) {
               if (y > 275) {
                 doc.addPage();

@@ -213,7 +213,8 @@ const ShoppingList = () => {
 
   const exportList = async () => {
     try {
-      const { default: jsPDF } = await import('jspdf');
+      const jsPDFModule = await import('jspdf');
+      const jsPDF = jsPDFModule.default || jsPDFModule.jsPDF;
       const doc = new jsPDF();
 
       doc.setFontSize(20);
@@ -252,8 +253,8 @@ const ShoppingList = () => {
             y = 20;
           }
           const checkmark = item.checked ? '[x]' : '[ ]';
-          doc.text(`${checkmark}  ${item.name}  (${item.quantity})`, 18, y);
-          doc.text(`$${item.price.toFixed(2)}`, 180, y, { align: 'right' });
+          doc.text(`${checkmark}  ${item.name}  (${item.quantity || ''})`, 18, y);
+          doc.text(`$${(Number(item.price) || 0).toFixed(2)}`, 180, y, { align: 'right' });
           y += 6;
         }
 
@@ -263,8 +264,8 @@ const ShoppingList = () => {
             y = 20;
           }
           doc.setTextColor(160, 160, 160);
-          doc.text(`[owned]  ${item.name}  (${item.quantity})`, 18, y);
-          doc.text(`$${item.price.toFixed(2)}`, 180, y, { align: 'right' });
+          doc.text(`[owned]  ${item.name}  (${item.quantity || ''})`, 18, y);
+          doc.text(`$${(Number(item.price) || 0).toFixed(2)}`, 180, y, { align: 'right' });
           doc.setTextColor(0, 0, 0);
           y += 6;
         }
