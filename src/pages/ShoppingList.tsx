@@ -72,7 +72,7 @@ const ShoppingList = () => {
 
 
         const parseQuantity = (qty: string): { num: number; unit: string } => {
-          const match = qty.match(/^([\d.\/]+)\s*(.*)/);
+          const match = qty.match(/^([\d./]+)\s*(.*)/);
           if (!match) return { num: 0, unit: qty };
           let num = 0;
           if (match[1].includes('/')) {
