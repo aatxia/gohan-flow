@@ -71,6 +71,25 @@ const ShoppingList = () => {
         const planDays = plan.weeklyPlan.slice(0, Math.min(daysToInclude, 7));
 
 
+        const parseQuantity = (qty: string): { num: number; unit: string } => {
+          const match = qty.match(/^([\d.\/]+)\s*(.*)/);
+          if (!match) return { num: 0, unit: qty };
+          let num = 0;
+          if (match[1].includes('/')) {
+            const [a, b] = match[1].split('/');
+            num = Number(a) / (Number(b) || 1);
+          } else {
+            num = Number(match[1]) || 0;
+          }
+          return { num, unit: match[2].trim() };
+        };
+
+        const formatQuantity = (num: number, unit: string): string => {
+          const rounded = Math.round(num * 100) / 100;
+          const display = rounded % 1 === 0 ? rounded.toString() : rounded.toFixed(1);
+          return unit ? `${display} ${unit}` : display;
+        };
+
         planDays.forEach((day: { meals: Meal[] }) => {
           day.meals.forEach((meal: Meal) => {
             meal.ingredients.forEach((ing: Ingredient) => {
@@ -78,6 +97,13 @@ const ShoppingList = () => {
               if (ingredientMap.has(key)) {
                 const existing = ingredientMap.get(key)!;
                 existing.price += ing.price;
+                const prev = parseQuantity(existing.quantity);
+                const curr = parseQuantity(ing.quantity);
+                if (prev.unit === curr.unit) {
+                  existing.quantity = formatQuantity(prev.num + curr.num, prev.unit);
+                } else {
+                  existing.quantity = `${existing.quantity}, ${ing.quantity}`;
+                }
               } else {
                 ingredientMap.set(key, {
                   ...ing,
