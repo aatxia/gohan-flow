@@ -59,7 +59,7 @@ const Profile = () => {
     comments?: Array<{ id: string }>;
   }>>([]);
 
-  // Load saved profile from API
+
   useEffect(() => {
     const loadProfile = async () => {
       if (!user?.id) return;
@@ -79,7 +79,7 @@ const Profile = () => {
 
     loadProfile();
     
-    // Завантажити поширені рецепти
+
     const loadSharedRecipes = async () => {
       if (!user?.id) return;
       
@@ -94,7 +94,7 @@ const Profile = () => {
     loadSharedRecipes();
   }, [user]);
 
-  // Save profile to API
+
   const handleSaveProfile = async () => {
     if (!user?.id) {
       toast({
@@ -133,13 +133,13 @@ const Profile = () => {
     }
   };
 
-  // Handle logout
+
   const handleLogout = () => {
     logout();
     navigate('/auth');
   };
 
-  // Toggle allergy
+
   const toggleAllergy = (allergy: string) => {
     setProfile(prev => ({
       ...prev,
@@ -154,7 +154,6 @@ const Profile = () => {
       <Navbar />
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl md:text-4xl font-display font-semibold text-foreground mb-2">
@@ -171,7 +170,6 @@ const Profile = () => {
         </div>
 
         <div className="space-y-6">
-          {/* Basic Info */}
           <Card variant="elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -212,7 +210,6 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Dietary Preferences */}
           <Card variant="elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -241,7 +238,6 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Allergies */}
           <Card variant="elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -274,7 +270,6 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Calorie Goals */}
           <Card variant="elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -323,7 +318,6 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Budget Settings */}
           <Card variant="elevated">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -387,7 +381,6 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Shared Recipes */}
           {sharedRecipes.length > 0 && (
             <Card variant="elevated">
               <CardHeader>
@@ -424,7 +417,6 @@ const Profile = () => {
             </Card>
           )}
 
-          {/* Save Button */}
           <Button onClick={handleSaveProfile} className="w-full" size="lg">
             <Save className="w-4 h-4 mr-2" />
             Save All Changes

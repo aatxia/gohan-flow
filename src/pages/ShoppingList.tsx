@@ -31,7 +31,7 @@ const ShoppingList = () => {
   const [totalBudget, setTotalBudget] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Generate shopping list from meal plan
+
   useEffect(() => {
     const loadShoppingList = async () => {
       if (!user?.id) {
@@ -40,10 +40,10 @@ const ShoppingList = () => {
       }
 
       try {
-        // Отримати поточний план
+
         const plan = await getCurrentMealPlan(user.id);
         if (!plan || !plan.weeklyPlan) {
-          // Перевірити чи є збережений список покупок
+
           const savedList = await getShoppingList(user.id);
           if (savedList && savedList.items && savedList.items.length > 0) {
             setItems(savedList.items);
@@ -53,25 +53,24 @@ const ShoppingList = () => {
           return;
         }
 
-        // Перевірити чи є збережений список покупок
+
         const savedList = await getShoppingList(user.id);
         if (savedList && savedList.items && savedList.items.length > 0) {
-          // Якщо є збережений список, використовуємо його
+
           setItems(savedList.items);
           setTotalBudget(savedList.totalBudget || 0);
           setIsLoading(false);
           return;
         }
 
-        // Якщо немає збереженого списку, генеруємо з плану
 
         const ingredientMap = new Map<string, ShoppingItem>();
 
-        // Determine how many days to include based on period
+
         const daysToInclude = period === 'daily' ? 1 : period === 'weekly' ? 7 : 30;
         const planDays = plan.weeklyPlan.slice(0, Math.min(daysToInclude, 7));
 
-        // Aggregate ingredients
+
         planDays.forEach((day: { meals: Meal[] }) => {
           day.meals.forEach((meal: Meal) => {
             meal.ingredients.forEach((ing: Ingredient) => {
@@ -92,7 +91,7 @@ const ShoppingList = () => {
           });
         });
 
-        // Multiply for monthly
+
         let multiplier = 1;
         if (period === 'monthly') multiplier = 4;
 
@@ -104,14 +103,14 @@ const ShoppingList = () => {
         setItems(generatedItems);
         setTotalBudget(plan.preferences.budget * (period === 'monthly' ? 4 : 1));
 
-        // Зберігаємо згенерований список
+
         await saveShoppingList({
           userId: user.id,
           items: generatedItems,
           totalBudget: plan.preferences.budget * (period === 'monthly' ? 4 : 1),
         });
 
-        // Створити нотифікацію про створення списку покупок
+
         await createNotification({
           userId: user.id,
           type: 'shopping',
@@ -129,7 +128,7 @@ const ShoppingList = () => {
     loadShoppingList();
   }, [period, user]);
 
-  // Categorize ingredient
+
   function categorizeIngredient(name: string): string {
     const categories: Record<string, string[]> = {
       produce: ['avocado', 'tomato', 'spinach', 'kale', 'cucumber', 'carrot', 'onion', 'banana', 'apple', 'mango', 'lemon', 'broccoli', 'pepper', 'ginger', 'garlic', 'green onion'],
@@ -148,14 +147,14 @@ const ShoppingList = () => {
     return 'other';
   }
 
-  // Toggle item checked
+
   const toggleChecked = async (id: string) => {
     const updatedItems = items.map(item =>
       item.id === id ? { ...item, checked: !item.checked } : item
     );
     setItems(updatedItems);
 
-    // Зберігаємо зміни в API
+
     if (user?.id) {
       try {
         await saveShoppingList({
@@ -169,13 +168,13 @@ const ShoppingList = () => {
     }
   };
 
-  // Toggle item owned (already have it) - переміщує вниз та перекреслює
+
   const toggleOwned = async (id: string) => {
     const updatedItems = items.map(item =>
       item.id === id ? { ...item, owned: !item.owned } : item
     );
     
-    // Сортуємо: спочатку невідмічені, потім відмічені (owned)
+
     const sortedItems = [...updatedItems].sort((a, b) => {
       if (a.owned && !b.owned) return 1;
       if (!a.owned && b.owned) return -1;
@@ -184,7 +183,7 @@ const ShoppingList = () => {
     
     setItems(sortedItems);
 
-    // Зберігаємо зміни в API
+
     if (user?.id) {
       try {
         await saveShoppingList({
@@ -198,22 +197,107 @@ const ShoppingList = () => {
     }
   };
 
-  // Group items by category
+
   const groupedItems = items.reduce((acc, item) => {
     if (!acc[item.category]) acc[item.category] = [];
     acc[item.category].push(item);
     return acc;
   }, {} as Record<string, ShoppingItem[]>);
 
-  // Calculate totals
+
   const itemsToBy = items.filter(i => !i.owned);
   const totalCost = itemsToBy.reduce((sum, i) => sum + i.price, 0);
   const checkedItems = itemsToBy.filter(i => i.checked);
   const spentAmount = checkedItems.reduce((sum, i) => sum + i.price, 0);
   const remainingBudget = totalBudget - spentAmount;
 
-  const exportList = () => {
-    toast({ title: 'Shopping list exported!', description: 'Your list has been downloaded.' });
+  const exportList = async () => {
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+
+      doc.setFontSize(20);
+      doc.text('Shopping List', 105, 20, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Period: ${period} | Generated: ${new Date().toLocaleDateString()}`, 105, 28, { align: 'center' });
+
+      let y = 40;
+
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+
+      const categories = Object.entries(groupedItems);
+      for (const [category, categoryItems] of categories) {
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${category.charAt(0).toUpperCase() + category.slice(1)}`, 14, y);
+        y += 7;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+
+        const activeItems = categoryItems.filter(i => !i.owned);
+        const ownedItems = categoryItems.filter(i => i.owned);
+
+        for (const item of activeItems) {
+          if (y > 275) {
+            doc.addPage();
+            y = 20;
+          }
+          const checkmark = item.checked ? '[x]' : '[ ]';
+          doc.text(`${checkmark}  ${item.name}  (${item.quantity})`, 18, y);
+          doc.text(`$${item.price.toFixed(2)}`, 180, y, { align: 'right' });
+          y += 6;
+        }
+
+        for (const item of ownedItems) {
+          if (y > 275) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.setTextColor(160, 160, 160);
+          doc.text(`[owned]  ${item.name}  (${item.quantity})`, 18, y);
+          doc.text(`$${item.price.toFixed(2)}`, 180, y, { align: 'right' });
+          doc.setTextColor(0, 0, 0);
+          y += 6;
+        }
+
+        y += 4;
+      }
+
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+      }
+      y += 4;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(14, y, 196, y);
+      y += 8;
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Items to buy: ${itemsToBy.length}`, 14, y);
+      y += 6;
+      doc.text(`Estimated total: $${totalCost.toFixed(2)}`, 14, y);
+      y += 6;
+      doc.text(`Budget: $${totalBudget.toFixed(2)}`, 14, y);
+      y += 6;
+      doc.text(`Remaining: $${remainingBudget.toFixed(2)}`, 14, y);
+
+      doc.save(`shopping-list-${period}-${new Date().toISOString().split('T')[0]}.pdf`);
+
+      toast({ title: 'Shopping list exported!', description: 'Your list has been downloaded as PDF.' });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast({ title: 'Export failed', description: 'Could not generate PDF. Please try again.', variant: 'destructive' });
+    }
   };
 
   const categoryIcons: Record<string, string> = {
@@ -230,7 +314,6 @@ const ShoppingList = () => {
       <Navbar />
 
       <main className="container mx-auto px-4 py-8">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl md:text-4xl font-display font-semibold text-foreground mb-2">
@@ -246,7 +329,6 @@ const ShoppingList = () => {
           </Button>
         </div>
 
-        {/* Period Selector */}
         <Tabs value={period} onValueChange={(v) => setPeriod(v as typeof period)} className="mb-6">
           <TabsList>
             <TabsTrigger value="daily" className="gap-2">
@@ -280,7 +362,6 @@ const ShoppingList = () => {
           </Card>
         ) : (
           <div className="grid lg:grid-cols-3 gap-6">
-            {/* Shopping List */}
             <div className="lg:col-span-2 space-y-4">
               {Object.entries(groupedItems).map(([category, categoryItems]) => (
                 <Card key={category} variant="elevated">
@@ -296,7 +377,7 @@ const ShoppingList = () => {
                   <CardContent className="space-y-2">
                     {categoryItems
                       .sort((a, b) => {
-                        // Сортуємо: спочатку невідмічені, потім відмічені (owned)
+
                         if (a.owned && !b.owned) return 1;
                         if (!a.owned && b.owned) return -1;
                         return 0;
@@ -348,7 +429,6 @@ const ShoppingList = () => {
               ))}
             </div>
 
-            {/* Summary Sidebar */}
             <div className="space-y-4">
               <Card variant="glass" className="p-6 sticky top-24">
                 <h3 className="font-display font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -357,7 +437,6 @@ const ShoppingList = () => {
                 </h3>
 
                 <div className="space-y-4">
-                  {/* Progress */}
                   <div>
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-muted-foreground">Shopping Progress</span>
@@ -371,7 +450,6 @@ const ShoppingList = () => {
                     />
                   </div>
 
-                  {/* Stats */}
                   <div className="space-y-3 pt-3 border-t border-border">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground flex items-center gap-2">
@@ -399,7 +477,6 @@ const ShoppingList = () => {
                     </div>
                   </div>
 
-                  {/* Budget Progress */}
                   <div className="pt-3">
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-muted-foreground">Budget Usage</span>

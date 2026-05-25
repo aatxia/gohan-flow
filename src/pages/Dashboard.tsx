@@ -17,13 +17,13 @@ import {
 } from 'lucide-react';
 import { getCurrentMealPlan } from '@/services/mealPlanService';
 
-// Dashboard page - main hub for authenticated users
+
 const Dashboard = () => {
   const { user } = useAuth();
   const [todaysMeals, setTodaysMeals] = useState<Meal[]>([]);
   const [greeting, setGreeting] = useState('');
 
-  // Set greeting based on time of day
+
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) setGreeting('Good morning');
@@ -31,11 +31,11 @@ const Dashboard = () => {
     else setGreeting('Good evening');
   }, []);
 
-  // Load saved meal plan from API
+
   useEffect(() => {
     const loadMealPlan = async () => {
       if (!user?.id) {
-        // Show sample meals for non-authenticated users
+
         setTodaysMeals([MEALS[0], MEALS[4], MEALS[8]]);
         return;
       }
@@ -43,22 +43,22 @@ const Dashboard = () => {
       try {
         const plan = await getCurrentMealPlan(user.id);
         if (plan && plan.weeklyPlan) {
-          // Get today's meals from the saved plan
+
           const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
           const todayPlan = plan.weeklyPlan.find((d: { day: string }) => d.day === today);
           if (todayPlan) {
             setTodaysMeals(todayPlan.meals);
           } else {
-            // If no plan for today, show sample meals
+
             setTodaysMeals([MEALS[0], MEALS[4], MEALS[8]]);
           }
         } else {
-          // Show sample meals for new users
+
           setTodaysMeals([MEALS[0], MEALS[4], MEALS[8]]);
         }
       } catch (error) {
         console.error('Помилка завантаження плану:', error);
-        // Show sample meals on error
+
         setTodaysMeals([MEALS[0], MEALS[4], MEALS[8]]);
       }
     };
@@ -66,7 +66,7 @@ const Dashboard = () => {
     loadMealPlan();
   }, [user]);
 
-  // Quick stats data
+
   const stats = [
     { icon: Calendar, label: 'This Week', value: '21 meals', color: 'text-primary' },
     { icon: TrendingUp, label: 'Budget Used', value: '68%', color: 'text-chart-3' },
@@ -78,7 +78,6 @@ const Dashboard = () => {
       <Navbar />
 
       <main className="container mx-auto px-4 py-8">
-        {/* Welcome Section */}
         <section className="mb-8 animate-fade-in">
           <h1 className="text-3xl md:text-4xl font-display font-semibold text-foreground mb-2">
             {greeting}, {user?.name?.split(' ')[0]}!
@@ -88,7 +87,6 @@ const Dashboard = () => {
           </p>
         </section>
 
-        {/* Quick Stats */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           {stats.map((stat, idx) => {
             const Icon = stat.icon;
@@ -115,7 +113,6 @@ const Dashboard = () => {
           })}
         </section>
 
-        {/* Quick Actions */}
         <section className="grid md:grid-cols-2 gap-6 mb-8">
           <Card variant="elevated" className="p-6 animate-fade-in" style={{ animationDelay: '200ms' }}>
             <div className="flex items-start justify-between mb-4">
@@ -155,7 +152,6 @@ const Dashboard = () => {
           </Card>
         </section>
 
-        {/* Today's Meals */}
         <section className="animate-fade-in" style={{ animationDelay: '400ms' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-display font-semibold text-foreground">

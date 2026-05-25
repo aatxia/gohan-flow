@@ -31,7 +31,6 @@ export const NotificationService = {
         };
       });
 
-      console.log(`✅ Завантажено ${notifications.length} нотифікацій для користувача ${userId}`);
       return notifications;
     } catch (error) {
       console.error("❌ Помилка при завантаженні нотифікацій:", error);
@@ -52,7 +51,6 @@ export const NotificationService = {
       }
 
       if (!userId) {
-        console.warn("⚠️ Спроба відправити сповіщення без userId");
         return null;
       }
 
@@ -66,7 +64,6 @@ export const NotificationService = {
         createdAt: new Date().toISOString()
       });
       
-      console.log(`✅ Сповіщення "${title}" створено для користувача ${userId}`);
       return { id: docRef.id, userId, title, message, type };
     } catch (error) {
       console.error("❌ Помилка створення сповіщення:", error);
@@ -88,7 +85,6 @@ export const NotificationService = {
         readAt: new Date().toISOString(),
       });
 
-      console.log("✅ Нотифікацію позначено як прочитану:", notificationId);
       return true;
     } catch (error) {
       console.error("❌ Помилка при оновленні нотифікації:", error);
@@ -112,7 +108,6 @@ export const createNotification = async (notificationData: {
     }
 
     if (!notificationData.userId) {
-      console.warn("⚠️ Спроба відправити сповіщення без userId");
       return null;
     }
 
@@ -126,7 +121,6 @@ export const createNotification = async (notificationData: {
         createdAt: new Date().toISOString()
     });
     
-    console.log(`✅ Сповіщення "${notificationData.title}" створено для користувача ${notificationData.userId}`);
     return { 
       id: docRef.id, 
       ...notificationData,
@@ -152,7 +146,6 @@ export const markNotificationAsRead = async (userId: string, notificationId: str
       readAt: new Date().toISOString(),
     });
 
-    console.log("✅ Нотифікацію позначено як прочитану:", notificationId);
     return true;
   } catch (error) {
     console.error("❌ Помилка при оновленні нотифікації:", error);
@@ -184,15 +177,10 @@ export const markAllNotificationsAsRead = async (userId: string) => {
 
     await Promise.all(updatePromises);
 
-    console.log(`✅ Позначено ${updatePromises.length} нотифікацій як прочитані`);
     return true;
   } catch (error) {
     console.error("❌ Помилка при оновленні нотифікацій:", error);
     return false;
   }
 };
-
-
-
-
 

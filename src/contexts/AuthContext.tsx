@@ -31,7 +31,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     if (!isFirebaseReady() || !auth) {
-      console.warn('Firebase not configured. Authentication disabled.');
       setIsLoading(false);
       return;
     }

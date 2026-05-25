@@ -10,9 +10,9 @@ interface MealCardProps {
   selected?: boolean;
 }
 
-// MealCard component displays individual meal information
+
 const MealCard: React.FC<MealCardProps> = ({ meal, showDetails = false, onSelect, selected }) => {
-  // Format meal type for display
+
   const mealTypeColors = {
     breakfast: 'bg-chart-3/20 text-chart-3 border-chart-3/30',
     lunch: 'bg-primary/20 text-primary border-primary/30',
@@ -26,7 +26,6 @@ const MealCard: React.FC<MealCardProps> = ({ meal, showDetails = false, onSelect
       className={`cursor-pointer ${selected ? 'ring-2 ring-primary ring-offset-2' : ''}`}
       onClick={onSelect}
     >
-      {/* Meal image placeholder with gradient */}
       <div className={`h-32 ${mealTypeColors[meal.type].split(' ')[0]} relative overflow-hidden`}>
         <div className="absolute inset-0 flex items-center justify-center">
           <span className="text-4xl">{
@@ -48,7 +47,6 @@ const MealCard: React.FC<MealCardProps> = ({ meal, showDetails = false, onSelect
           {meal.name}
         </h3>
 
-        {/* Quick stats */}
         <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
           <div className="flex items-center gap-1">
             <Flame className="w-4 h-4 text-secondary" />
@@ -64,7 +62,6 @@ const MealCard: React.FC<MealCardProps> = ({ meal, showDetails = false, onSelect
           </div>
         </div>
 
-        {/* Tags */}
         <div className="flex flex-wrap gap-1.5">
           {meal.tags.slice(0, 3).map((tag) => (
             <Badge key={tag} variant="secondary" className="text-xs">
@@ -73,7 +70,6 @@ const MealCard: React.FC<MealCardProps> = ({ meal, showDetails = false, onSelect
           ))}
         </div>
 
-        {/* Expanded details */}
         {showDetails && (
           <div className="mt-4 pt-4 border-t border-border space-y-3 animate-fade-in">
             <div className="grid grid-cols-3 gap-2 text-center">

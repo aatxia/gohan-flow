@@ -16,7 +16,7 @@ export interface MealPlanPreferences {
   dietaryPreference: string;
   calorieGoal: number;
   mealsPerDay: number;
-  selectedRecipes?: string[]; // IDs вибраних рецептів
+  selectedRecipes?: string[];
 }
 
 interface BudgetFormProps {
@@ -24,7 +24,7 @@ interface BudgetFormProps {
   isLoading?: boolean;
 }
 
-// BudgetForm component for collecting user meal planning preferences
+
 const BudgetForm: React.FC<BudgetFormProps> = ({ onSubmit, isLoading }) => {
   const [preferences, setPreferences] = useState<MealPlanPreferences>({
     budget: 50,
@@ -67,7 +67,6 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ onSubmit, isLoading }) => {
 
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Budget Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-foreground font-medium">
               <DollarSign className="w-5 h-5 text-primary" />
@@ -113,7 +112,6 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ onSubmit, isLoading }) => {
             </div>
           </div>
 
-          {/* Dietary Preferences */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-foreground font-medium">
               <Utensils className="w-5 h-5 text-primary" />
@@ -139,7 +137,6 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ onSubmit, isLoading }) => {
             </div>
           </div>
 
-          {/* Calorie Goals */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-foreground font-medium">
               <Target className="w-5 h-5 text-primary" />
@@ -180,7 +177,6 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ onSubmit, isLoading }) => {
             )}
           </div>
 
-          {/* Meals per Day */}
           <div className="space-y-4">
             <Label>Meals per day: {preferences.mealsPerDay}</Label>
             <Slider
@@ -197,7 +193,6 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ onSubmit, isLoading }) => {
             </div>
           </div>
 
-          {/* Submit Button */}
           <Button
             type="submit"
             variant="hero"
@@ -214,7 +209,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ onSubmit, isLoading }) => {
   );
 };
 
-// Recipe Selector Component
+
 interface RecipeSelectorProps {
   recipes: Array<{
     id: string;

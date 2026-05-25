@@ -36,7 +36,7 @@ const Health = () => {
     icon?: string;
   }>>([]);
 
-  // Завантажити поради ВООЗ з бази даних
+
   useEffect(() => {
     const loadWhoAdvice = async () => {
       if (!user?.id) return;
@@ -52,14 +52,14 @@ const Health = () => {
     loadWhoAdvice();
   }, [user]);
 
-  // Save health data
+
   const saveHealthData = () => {
     setSavedData(healthData);
     localStorage.setItem('gohanflow_health', JSON.stringify(healthData));
     toast({ title: 'Health data saved!', description: 'Your recommendations have been updated.' });
   };
 
-  // Get recommendation for a specific metric
+
   const getRecommendation = (metric: keyof typeof HEALTH_RECOMMENDATIONS, value: number | undefined) => {
     if (value === undefined || !(metric in HEALTH_RECOMMENDATIONS)) return null;
     
@@ -73,7 +73,7 @@ const Health = () => {
     return { status: 'normal', message: rec.normal?.message || 'Levels are within healthy range.', color: 'text-primary' };
   };
 
-  // Health metrics configuration
+
   const metrics = [
     { key: 'vitaminD', label: 'Vitamin D', unit: 'ng/mL', icon: Pill, range: '30-100' },
     { key: 'vitaminB12', label: 'Vitamin B12', unit: 'pg/mL', icon: Pill, range: '200-900' },
@@ -83,7 +83,7 @@ const Health = () => {
     { key: 'hemoglobin', label: 'Hemoglobin', unit: 'g/dL', icon: Droplets, range: '12-17' },
   ];
 
-  // Food recommendations based on WHO guidelines
+
   const nutritionTips = [
     { title: 'Eat Plenty of Vegetables', description: 'Aim for at least 400g of fruits and vegetables daily', icon: '🥗' },
     { title: 'Limit Sugar Intake', description: 'Keep added sugars below 10% of total energy intake', icon: '🍭' },
@@ -98,7 +98,6 @@ const Health = () => {
       <Navbar />
 
       <main className="container mx-auto px-4 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-display font-semibold text-foreground mb-2">
             Health & Recommendations
@@ -108,7 +107,6 @@ const Health = () => {
           </p>
         </div>
 
-        {/* Disclaimer */}
         <Alert className="mb-8 border-amber-500/50 bg-amber-500/10">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
           <AlertTitle className="text-amber-600">Educational Information Only</AlertTitle>
@@ -119,7 +117,6 @@ const Health = () => {
         </Alert>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Health Input Form */}
           <div className="lg:col-span-2 space-y-6">
             <Card variant="elevated">
               <CardHeader>
@@ -159,7 +156,6 @@ const Health = () => {
               </CardContent>
             </Card>
 
-            {/* Recommendations */}
             {savedData && (
               <Card variant="elevated">
                 <CardHeader>
@@ -216,7 +212,6 @@ const Health = () => {
             )}
           </div>
 
-          {/* WHO Guidelines Sidebar */}
           <div className="space-y-6">
             <Card variant="glass" className="p-6">
               <h3 className="font-display font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -235,7 +230,7 @@ const Health = () => {
                     </div>
                   ))
                 ) : (
-                  // Fallback до статичних порад якщо немає в БД
+
                   nutritionTips.map((tip, idx) => (
                     <div key={idx} className="flex gap-3">
                       <span className="text-2xl">{tip.icon}</span>
@@ -249,7 +244,6 @@ const Health = () => {
               </div>
             </Card>
 
-            {/* Quick Stats */}
             <Card variant="glass" className="p-6">
               <h3 className="font-display font-semibold text-foreground mb-4">
                 Daily Targets

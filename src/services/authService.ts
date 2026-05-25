@@ -73,7 +73,6 @@ export const AuthService = {
 
       await setDoc(doc(db, "users", user.uid), userProfile);
 
-      console.log("✅ Користувача зареєстровано та профіль створено в Firestore:", user.uid);
       
       return { user, profile: userProfile };
     } catch (error) {
@@ -95,10 +94,8 @@ export const AuthService = {
       
       if (userDoc.exists()) {
         const profileData = userDoc.data() as UserProfile;
-        console.log("✅ Дані користувача завантажено з Firestore:", profileData);
         return { user, profile: profileData };
       } else {
-        console.warn("⚠️ Профіль не знайдено в БД! Створюємо базовий профіль...");
         
         const basicProfile: UserProfile = {
           uid: user.uid,
@@ -121,7 +118,6 @@ export const AuthService = {
         };
 
         await setDoc(doc(db, "users", user.uid), basicProfile);
-        console.log("✅ Базовий профіль створено для користувача:", user.uid);
         
         return { user, profile: basicProfile };
       }
@@ -136,7 +132,6 @@ export const AuthService = {
       throw new Error("Firebase не ініціалізовано!");
     }
     await signOut(auth);
-    console.log("✅ Користувач вийшов з системи");
   },
 
   getUserProfile: async (uid: string): Promise<UserProfile | null> => {

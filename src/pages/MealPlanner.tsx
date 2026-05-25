@@ -27,7 +27,7 @@ import { getCurrentMealPlan, saveMealPlan } from '@/services/mealPlanService';
 import { createNotification } from '@/services/notificationService';
 import { getAllRecipes } from '@/services/recipeService';
 
-// Types for generated meal plan
+
 interface DayPlan {
   day: string;
   meals: Meal[];
@@ -42,7 +42,7 @@ interface GeneratedPlan {
   preferences: MealPlanPreferences;
 }
 
-// Meal planner page with form and generated plan display
+
 const MealPlanner = () => {
   const { user } = useAuth();
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null);
@@ -56,7 +56,7 @@ const MealPlanner = () => {
 
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  // Завантажити поточний план при завантаженні сторінки
+
   useEffect(() => {
     const loadCurrentPlan = async () => {
       if (!user?.id) {
@@ -78,11 +78,10 @@ const MealPlanner = () => {
 
     loadCurrentPlan();
     
-    // Завантажити рецепти для вибору
+
     const loadRecipes = async () => {
       try {
         const recipes = await getAllRecipes();
-        console.log('Завантажено рецептів з БД:', recipes.length);
         setAvailableRecipes(recipes);
       } catch (error) {
         console.error('Помилка завантаження рецептів:', error);
@@ -93,7 +92,7 @@ const MealPlanner = () => {
     loadRecipes();
   }, [user]);
 
-  // Конвертувати рецепт в Meal формат
+
   const recipeToMeal = (recipe: Recipe): Meal => {
     return {
       id: recipe.id,
@@ -111,68 +110,64 @@ const MealPlanner = () => {
     };
   };
 
-  // Generate a meal plan based on user preferences
+
   const generateMealPlan = async (preferences: MealPlanPreferences) => {
     setIsGenerating(true);
 
-    // Завантажити рецепти з БД, якщо ще не завантажені
+
     let recipesToUse = availableRecipes;
     if (recipesToUse.length === 0) {
       try {
         recipesToUse = await getAllRecipes();
         setAvailableRecipes(recipesToUse);
-        console.log('Завантажено рецептів з БД для генерації плану:', recipesToUse.length);
       } catch (error) {
         console.error('Помилка завантаження рецептів:', error);
         recipesToUse = [];
       }
     }
 
-    // Simulate API call delay
+
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // Отримати ВСІ рецепти з БД та конвертувати в Meal
+
     const allRecipeMeals: Meal[] = recipesToUse
       .filter(r => r.status === 'published')
       .map(recipeToMeal);
 
-    console.log('Рецепти з БД конвертовано в Meal:', allRecipeMeals.length);
 
-    // Отримати вибрані рецепти (якщо є)
+
     const selectedRecipeMeals: Meal[] = [];
     if (preferences.selectedRecipes && preferences.selectedRecipes.length > 0) {
       selectedRecipeMeals.push(...allRecipeMeals
         .filter(m => preferences.selectedRecipes!.includes(m.id)));
-      console.log('Вибрані рецепти:', selectedRecipeMeals.length);
     }
 
-    // Filter meals by dietary preference
+
     const filteredMeals = filterMealsByPreference(MEALS, preferences.dietaryPreference);
     
-    // Об'єднати ВСІ рецепти з БД з доступними стравами (рецепти мають пріоритет)
+
     const allAvailableMeals = [...allRecipeMeals, ...filteredMeals];
     
-    console.log('Всього доступних страв:', allAvailableMeals.length, '(рецепти:', allRecipeMeals.length, ', mock:', filteredMeals.length, ')');
     
-    // Calculate daily budget
+
     const dailyBudget = preferences.budgetPeriod === 'weekly' 
       ? preferences.budget / 7 
       : preferences.budget;
 
-    // Розподілити вибрані рецепти по днях
+
     const selectedMealsPool = [...selectedRecipeMeals];
     const selectedMealsUsed = new Set<string>();
 
-    // Generate weekly plan
+
     const weeklyPlan: DayPlan[] = daysOfWeek.map((day, dayIndex) => {
       const dayMeals: Meal[] = [];
       let remainingBudget = dailyBudget;
       let totalCalories = 0;
 
-      // Select meals based on preferences - ВАЖЛИВО: генеруємо РІВНО стільки прийомів, скільки вказав користувач
+
       const mealTypes: ('breakfast' | 'lunch' | 'dinner' | 'snack')[] = [];
       
-      // Генеруємо масив типів прийомів їжі відповідно до preferences.mealsPerDay
+
       if (preferences.mealsPerDay >= 5) {
         mealTypes.push('breakfast', 'snack', 'lunch', 'snack', 'dinner');
       } else if (preferences.mealsPerDay === 4) {
@@ -182,38 +177,38 @@ const MealPlanner = () => {
       } else if (preferences.mealsPerDay === 2) {
         mealTypes.push('breakfast', 'dinner');
       } else {
-        // Якщо менше 2, все одно додаємо мінімум 2
+
         mealTypes.push('breakfast', 'dinner');
       }
 
-      // Генеруємо прийоми їжі для кожного типу
+
       for (let i = 0; i < mealTypes.length; i++) {
         const type = mealTypes[i];
         
-        // Спочатку перевіряємо чи є вибрані рецепти цього типу, які ще не використані
+
         const availableSelectedRecipes = selectedMealsPool.filter(m => 
           m.type === type && 
           m.price <= remainingBudget &&
-          !selectedMealsUsed.has(m.id) // Не використовували ще
+          !selectedMealsUsed.has(m.id)
         );
 
         if (availableSelectedRecipes.length > 0) {
-          // Використовуємо вибраний рецепт (пріоритет вибраним)
+
           const selectedRecipe = availableSelectedRecipes[0];
           dayMeals.push(selectedRecipe);
           remainingBudget -= selectedRecipe.price;
           totalCalories += selectedRecipe.calories;
           selectedMealsUsed.add(selectedRecipe.id);
         } else {
-          // Якщо немає вибраного рецепту, використовуємо оптимізацію
+
           const availableMeals = allAvailableMeals.filter(m => 
             m.type === type && 
             m.price <= remainingBudget &&
-            !dayMeals.some(dm => dm.id === m.id) // Уникаємо дублікатів в один день
+            !dayMeals.some(dm => dm.id === m.id)
           );
           
           if (availableMeals.length > 0) {
-            // Оптимізація: вибираємо страви з найкращим співвідношенням калорій до ціни
+
             const dailyCalorieGoal = preferences.calorieGoal;
             const remainingCalories = dailyCalorieGoal - totalCalories;
             const remainingMeals = mealTypes.length - dayMeals.length;
@@ -235,14 +230,13 @@ const MealPlanner = () => {
             const topMeals = scoredMeals.slice(0, Math.min(3, scoredMeals.length));
             const selectedMeal = topMeals.length > 0 
               ? topMeals[Math.floor(Math.random() * topMeals.length)].meal
-              : availableMeals[0]; // Якщо немає оцінених, беремо першу доступну
+              : availableMeals[0];
             
             dayMeals.push(selectedMeal);
             remainingBudget -= selectedMeal.price;
             totalCalories += selectedMeal.calories;
           } else {
-            // Якщо немає доступних страв для цього типу, все одно додаємо будь-яку доступну страву
-            // щоб забезпечити правильну кількість прийомів їжі
+
             const anyAvailableMeal = allAvailableMeals.find(m => 
               m.price <= remainingBudget &&
               !dayMeals.some(dm => dm.id === m.id)
@@ -257,7 +251,6 @@ const MealPlanner = () => {
         }
       }
       
-      console.log(`День ${day}: згенеровано ${dayMeals.length} прийомів їжі (очікувалось: ${mealTypes.length})`);
 
       return {
         day,
@@ -277,7 +270,7 @@ const MealPlanner = () => {
     setGeneratedPlan(plan);
     setIsGenerating(false);
 
-    // Зберегти в Firebase через API
+
     if (user?.id) {
       try {
         const savedPlan = await saveMealPlan({
@@ -288,7 +281,7 @@ const MealPlanner = () => {
         if (savedPlan) {
           setGeneratedPlan(plan);
           
-          // Створити нотифікацію про створення плану
+
           if (user?.id) {
             await createNotification({
               userId: user.id,
@@ -325,19 +318,111 @@ const MealPlanner = () => {
     }
   };
 
-  // Regenerate plan with same preferences
+
   const regeneratePlan = () => {
     if (generatedPlan?.preferences) {
       generateMealPlan(generatedPlan.preferences);
     }
   };
 
-  // Export plan (mock implementation)
-  const exportPlan = () => {
-    toast({
-      title: 'Plan exported',
-      description: 'Your meal plan has been saved.',
-    });
+
+  const exportPlan = async () => {
+    if (!generatedPlan) return;
+
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+
+      doc.setFontSize(20);
+      doc.text('Weekly Meal Plan', 105, 20, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.setTextColor(120, 120, 120);
+      const dietLabel = generatedPlan.preferences.dietaryPreference !== 'none'
+        ? generatedPlan.preferences.dietaryPreference
+        : 'No restriction';
+      doc.text(
+        `${dietLabel} | ${generatedPlan.preferences.mealsPerDay} meals/day | Budget: $${generatedPlan.preferences.budget} ${generatedPlan.preferences.budgetPeriod}`,
+        105, 28, { align: 'center' }
+      );
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, 105, 34, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Weekly Cost: $${generatedPlan.totalWeeklyCost.toFixed(2)}`, 14, 44);
+      doc.text(`Avg Calories/Day: ${Math.round(generatedPlan.totalWeeklyCalories / 7)}`, 105, 44);
+      doc.text(`Total Meals: ${generatedPlan.weeklyPlan.reduce((s, d) => s + d.meals.length, 0)}`, 170, 44);
+
+      let y = 56;
+
+      for (const dayPlan of generatedPlan.weeklyPlan) {
+        if (y > 250) {
+          doc.addPage();
+          y = 20;
+        }
+
+        doc.setFillColor(240, 240, 240);
+        doc.rect(14, y - 5, 182, 8, 'F');
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text(dayPlan.day, 16, y);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${dayPlan.totalCalories} cal | $${dayPlan.totalCost.toFixed(2)}`, 180, y, { align: 'right' });
+        y += 8;
+
+        doc.setFontSize(10);
+        for (const meal of dayPlan.meals) {
+          if (y > 275) {
+            doc.addPage();
+            y = 20;
+          }
+
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${meal.type.charAt(0).toUpperCase() + meal.type.slice(1)}: ${meal.name}`, 18, y);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          doc.text(`${meal.calories} cal | $${meal.price.toFixed(2)} | ${meal.prepTime} min prep`, 180, y, { align: 'right' });
+          doc.setFontSize(10);
+          y += 5;
+
+          if (meal.ingredients && meal.ingredients.length > 0) {
+            doc.setFontSize(8);
+            doc.setTextColor(100, 100, 100);
+            const ingredientNames = meal.ingredients.map(i => i.name).join(', ');
+            const lines = doc.splitTextToSize(`Ingredients: ${ingredientNames}`, 170);
+            for (const line of lines) {
+              if (y > 275) {
+                doc.addPage();
+                y = 20;
+              }
+              doc.text(line, 22, y);
+              y += 4;
+            }
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(10);
+          }
+          y += 3;
+        }
+        y += 4;
+      }
+
+      doc.save(`meal-plan-${new Date().toISOString().split('T')[0]}.pdf`);
+
+      toast({
+        title: 'Plan exported!',
+        description: 'Your meal plan has been downloaded as PDF.',
+      });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast({
+        title: 'Export failed',
+        description: 'Could not generate PDF. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const currentDayPlan = generatedPlan?.weeklyPlan[selectedDay];
@@ -352,7 +437,7 @@ const MealPlanner = () => {
             <p className="text-muted-foreground">Loading meal plan...</p>
           </div>
         ) : !generatedPlan ? (
-          // Show form when no plan generated
+
           <div className="animate-fade-in">
             <div className="text-center mb-8">
               <h1 className="text-3xl md:text-4xl font-display font-semibold text-foreground mb-2">
@@ -363,7 +448,6 @@ const MealPlanner = () => {
               </p>
             </div>
             
-            {/* Recipe Selector */}
             {availableRecipes.length > 0 && (
               <div className="mb-6 max-w-2xl mx-auto">
                 <RecipeSelector
@@ -397,9 +481,8 @@ const MealPlanner = () => {
             />
           </div>
         ) : (
-          // Show generated plan
+
           <div className="space-y-6 animate-fade-in">
-            {/* Header with actions */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-display font-semibold text-foreground mb-1">
@@ -423,7 +506,7 @@ const MealPlanner = () => {
                   variant="default" 
                   size="sm" 
                   onClick={async () => {
-                    // Підтвердження плану - зберігаємо план
+
                     if (user?.id) {
                       try {
                         const savedPlan = await saveMealPlan({
@@ -479,7 +562,6 @@ const MealPlanner = () => {
               </div>
             </div>
 
-            {/* Weekly overview stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card variant="glass" className="p-4">
                 <div className="flex items-center gap-3">
@@ -527,7 +609,6 @@ const MealPlanner = () => {
               </Card>
             </div>
 
-            {/* Day selector */}
             <div className="flex items-center justify-between">
               <Button
                 variant="ghost"
@@ -562,7 +643,6 @@ const MealPlanner = () => {
               </Button>
             </div>
 
-            {/* Day details */}
             {currentDayPlan && (
               <Card variant="elevated" className="animate-fade-in">
                 <CardHeader className="pb-4">

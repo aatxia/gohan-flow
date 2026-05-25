@@ -29,12 +29,10 @@ if (isFirebaseConfigured()) {
     auth = getAuth(app);
     db = getFirestore(app);
     analytics = getAnalytics(app);
-    console.log('✅ Firebase initialized successfully');
   } catch (error) {
     console.error('❌ Firebase initialization error:', error);
   }
 } else {
-  console.warn('⚠️ Firebase not configured. Please update src/config/firebaseConfig.ts with your Firebase credentials.');
 }
 
 export { auth, db };

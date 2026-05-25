@@ -1,5 +1,4 @@
-// backend/seed.js
-// Скрипт для заповнення бази даних реальними рецептами GohanFlow
+
 
 const admin = require('firebase-admin');
 const serviceAccount = require('./serviceAccountKey.json');
@@ -10,7 +9,7 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-// "Справжні" дані для GohanFlow (японська/азіатська кухня + здорова їжа)
+
 const realRecipes = [
   {
     title: "Teriyaki Chicken Bowl",
@@ -601,7 +600,7 @@ const realRecipes = [
   }
 ];
 
-// Поради ВООЗ для бази даних
+
 const whoAdviceData = [
   {
     title: 'Eat Plenty of Vegetables',
@@ -678,10 +677,9 @@ const whoAdviceData = [
 ];
 
 async function seedDatabase() {
-  console.log("🧹 Видалення старих рецептів...");
   
   try {
-    // Очищення колекції recipes (обережно!)
+
     const snapshot = await db.collection('recipes').get();
     const batch = db.batch();
     
@@ -690,28 +688,23 @@ async function seedDatabase() {
     });
     
     await batch.commit();
-    console.log(`🗑 Видалено ${snapshot.docs.length} старих рецептів.`);
   } catch (error) {
     console.error("Помилка при видаленні:", error);
   }
   
-  console.log("🌱 Додавання нових рецептів GohanFlow...");
   
   try {
     for (const recipe of realRecipes) {
       await db.collection('recipes').add(recipe);
     }
-    console.log(`✅ Додано ${realRecipes.length} нових рецептів!`);
-    console.log("✅ База даних успішно оновлена GohanFlow рецептами!");
   } catch (error) {
     console.error("Помилка при додаванні рецептів:", error);
   }
   
-  // Додати поради ВООЗ
-  console.log("🌱 Додавання порад ВООЗ...");
+
   
   try {
-    // Перевірити чи вже є поради
+
     const existingAdvice = await db.collection('whoAdvice').get();
     if (existingAdvice.empty) {
       for (const advice of whoAdviceData) {
@@ -721,9 +714,7 @@ async function seedDatabase() {
           updatedAt: new Date().toISOString(),
         });
       }
-      console.log(`✅ Додано ${whoAdviceData.length} порад ВООЗ!`);
     } else {
-      console.log("ℹ️ Поради ВООЗ вже існують в базі даних.");
     }
   } catch (error) {
     console.error("Помилка при додаванні порад ВООЗ:", error);

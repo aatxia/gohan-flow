@@ -28,12 +28,12 @@ const Recipes = () => {
   const [newComment, setNewComment] = useState('');
   const [likedRecipes, setLikedRecipes] = useState<Set<string>>(new Set());
 
-  // Завантажити рецепти при завантаженні сторінки (тільки з БД)
+
   useEffect(() => {
     const loadRecipes = async () => {
       try {
         const loadedRecipes = await getAllRecipes();
-        // Використовуємо тільки дані з бази даних
+
         setRecipes(loadedRecipes);
       } catch (error) {
         console.error('Помилка завантаження рецептів:', error);
@@ -46,7 +46,7 @@ const Recipes = () => {
     loadRecipes();
   }, []);
 
-  // Filter recipes
+
   const filteredRecipes = recipes.filter(recipe => {
     const matchesSearch = recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       recipe.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -54,7 +54,7 @@ const Recipes = () => {
     return matchesSearch && matchesType && recipe.status === 'published';
   });
 
-  // Toggle like
+
   const toggleLike = async (recipeId: string) => {
     if (!user?.id) {
       toast({
@@ -68,12 +68,12 @@ const Recipes = () => {
     try {
       const result = await likeRecipe(recipeId, user.id);
       if (result) {
-        // Оновлюємо кількість лайків в локальному стані
+
         setRecipes(prev => prev.map(r => 
           r.id === recipeId ? { ...r, likes: result.likes } : r
         ));
         
-        // Оновлюємо вибраний рецепт якщо він відкритий
+
         if (selectedRecipe?.id === recipeId) {
           setSelectedRecipe(prev => prev ? { ...prev, likes: result.likes } : null);
         }
@@ -85,7 +85,7 @@ const Recipes = () => {
     }
   };
 
-  // Share recipe
+
   const handleShareRecipe = async (recipeId: string) => {
     if (!user?.id) {
       toast({
@@ -114,7 +114,7 @@ const Recipes = () => {
     }
   };
 
-  // Add comment
+
   const addComment = async () => {
     if (!selectedRecipe || !newComment.trim() || !user) return;
     
@@ -126,7 +126,7 @@ const Recipes = () => {
       });
 
       if (comment) {
-        // Оновлюємо рецепти в локальному стані
+
         setRecipes(prev => prev.map(r => 
           r.id === selectedRecipe.id 
             ? { ...r, comments: [...r.comments, comment] }
@@ -146,7 +146,7 @@ const Recipes = () => {
     }
   };
 
-  // Submit recipe for moderation
+
   const submitRecipe = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -192,7 +192,7 @@ const Recipes = () => {
           title: 'Recipe submitted!',
           description: 'Your recipe is pending moderation and will be published soon.',
         });
-        // Оновлюємо список рецептів
+
         setRecipes(prev => [savedRecipe, ...prev]);
       } else {
         toast({
@@ -216,7 +216,6 @@ const Recipes = () => {
       <Navbar />
 
       <main className="container mx-auto px-4 py-8">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl md:text-4xl font-display font-semibold text-foreground mb-2">
@@ -324,7 +323,6 @@ const Recipes = () => {
           </Dialog>
         </div>
 
-        {/* Search and Filter */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -346,7 +344,6 @@ const Recipes = () => {
           </Tabs>
         </div>
 
-        {/* Recipe Grid */}
         {isLoading ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading recipes...</p>
@@ -363,7 +360,6 @@ const Recipes = () => {
                 setIsDialogOpen(true);
               }}
             >
-              {/* Recipe Header */}
               <div className="h-40 bg-gradient-to-br from-primary/20 to-accent relative">
                 <Badge className="absolute top-3 left-3 capitalize">{recipe.type}</Badge>
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -390,7 +386,6 @@ const Recipes = () => {
                   {recipe.description}
                 </p>
 
-                {/* Stats */}
                 <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
@@ -406,14 +401,12 @@ const Recipes = () => {
                   </span>
                 </div>
 
-                {/* Tags */}
                 <div className="flex flex-wrap gap-1 mb-3">
                   {recipe.tags.slice(0, 3).map(tag => (
                     <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
                   ))}
                 </div>
 
-                {/* Author and Engagement */}
                 <div className="flex items-center justify-between pt-3 border-t border-border">
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <User className="w-3 h-3" />
@@ -448,7 +441,6 @@ const Recipes = () => {
           </div>
         )}
 
-        {/* Recipe Detail Dialog - відкривається при кліку на рецепт */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
             <DialogHeader>
@@ -457,7 +449,6 @@ const Recipes = () => {
             
             {selectedRecipe && (
                           <div className="space-y-4">
-                            {/* Recipe Details */}
                             <div className="space-y-3">
                               <p className="text-muted-foreground">{selectedRecipe.description}</p>
                               
@@ -499,7 +490,6 @@ const Recipes = () => {
                               </div>
                             </div>
 
-                            {/* Comments */}
                             <div className="border-t border-border pt-4">
                               <h4 className="font-medium text-foreground mb-3">
                                 Comments ({selectedRecipe.comments.length})
@@ -524,7 +514,6 @@ const Recipes = () => {
                                 )}
                               </div>
 
-                              {/* Add Comment */}
                               <div className="flex gap-2">
                                 <Input
                                   placeholder="Add a comment..."

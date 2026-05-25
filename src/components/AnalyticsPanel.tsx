@@ -12,7 +12,7 @@ interface AnalyticsPanelProps {
   averageCostPerMeal: number;
 }
 
-// AnalyticsPanel component displays budget and spending analytics
+
 const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
   totalBudget,
   totalSpent,
@@ -25,7 +25,7 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
   const percentSpent = (totalSpent / totalBudget) * 100;
   const isOverBudget = remaining < 0;
 
-  // Stat card component for reusability
+
   const StatCard = ({ 
     icon: Icon, 
     label, 
@@ -63,7 +63,6 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Overview Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={Wallet}
@@ -92,7 +91,6 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
         />
       </div>
 
-      {/* Budget Progress */}
       <Card variant="elevated">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center justify-between">
@@ -114,9 +112,7 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
         </CardContent>
       </Card>
 
-      {/* Charts Row */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Spending by Meal Type */}
         <Card variant="elevated">
           <CardHeader>
             <CardTitle className="text-lg">Spending by Meal</CardTitle>
@@ -163,7 +159,6 @@ const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({
           </CardContent>
         </Card>
 
-        {/* Daily Spending */}
         <Card variant="elevated">
           <CardHeader>
             <CardTitle className="text-lg">Daily Spending</CardTitle>

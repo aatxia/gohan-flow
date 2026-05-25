@@ -8,7 +8,7 @@ import { UtensilsCrossed, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCurrentMealPlan } from '@/services/mealPlanService';
 
-// Analytics page displaying spending and meal plan statistics
+
 const Analytics = () => {
   const { user } = useAuth();
   const [analyticsData, setAnalyticsData] = useState<{
@@ -21,7 +21,7 @@ const Analytics = () => {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load analytics data from API
+
   useEffect(() => {
     const loadAnalytics = async () => {
       if (!user?.id) {
@@ -38,7 +38,7 @@ const Analytics = () => {
           return;
         }
         
-        // Calculate spending by meal type
+
         const mealTypeSpending: Record<string, number> = {
           breakfast: 0,
           lunch: 0,
@@ -55,7 +55,7 @@ const Analytics = () => {
           });
         });
 
-        // Format data for charts
+
         const spendingByMeal = [
           { name: 'Breakfast', value: mealTypeSpending.breakfast, color: 'hsl(45, 90%, 55%)' },
           { name: 'Lunch', value: mealTypeSpending.lunch, color: 'hsl(142, 45%, 42%)' },
@@ -112,7 +112,7 @@ const Analytics = () => {
             <AnalyticsPanel {...analyticsData} />
           </div>
         ) : (
-          // Empty state when no meal plan exists
+
           <Card variant="elevated" className="p-12 text-center animate-fade-in">
             <div className="max-w-md mx-auto">
               <div className="w-16 h-16 rounded-2xl bg-accent flex items-center justify-center mx-auto mb-6">

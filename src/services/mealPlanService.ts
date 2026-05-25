@@ -144,7 +144,6 @@ export const saveMealPlan = async (planData: Record<string, unknown>) => {
       updatedAt: now,
     });
   } catch (archiveError) {
-    console.warn('Архів плану не збережено (можливо немає прав на plans):', archiveError);
   }
 
   return {
@@ -210,7 +209,6 @@ export const MealPlanService = {
       let totalSpent = 0;
       const dailyBudgetLimit = totalBudget / days;
 
-      console.log(`💰 Генерація плану: Бюджет ${totalBudget} грн на ${days} днів (${Math.round(dailyBudgetLimit)} грн/день)`);
 
       for (let i = 1; i <= days; i++) {
         const dayMeals: Recipe[] = [];
@@ -254,7 +252,6 @@ export const MealPlanService = {
         isWithinBudget: totalSpent <= totalBudget + (totalBudget * 0.05)
       };
 
-      console.log(`✅ План згенеровано: ${result.totalCost} грн (бюджет: ${totalBudget} грн)`);
       return result;
 
     } catch (error) {
@@ -282,7 +279,6 @@ export const MealPlanService = {
         createdAt: new Date().toISOString()
       });
       
-      console.log("✅ План збережено в Firestore з ID:", docRef.id);
       return { id: docRef.id, success: true };
     } catch (error) {
       console.error("❌ Помилка збереження плану:", error);

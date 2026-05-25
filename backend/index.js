@@ -6,17 +6,16 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = 5000;
 
-// Дозволяємо фронтенду звертатися до бекенду
+
 app.use(cors());
 app.use(bodyParser.json());
 
-// Підключення Firebase Admin
+
 try {
   const serviceAccount = require('./serviceAccountKey.json');
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
-  console.log("✅ Firebase успішно підключено!");
 } catch (error) {
   console.error("❌ Помилка підключення ключа. Перевір, чи файл serviceAccountKey.json існує в цій папці.");
   process.exit(1);
@@ -24,16 +23,12 @@ try {
 
 const db = admin.firestore();
 
-// --- API ---
 
-// Тестовий маршрут
 app.get('/', (req, res) => {
   res.send('🚀 GohanFlow Server running on port ' + PORT);
 });
 
-// --- 1. КОРИСТУВАЧІ (Профілі) ---
 
-// Створити/Оновити профіль після реєстрації
 app.post('/api/users/:uid', async (req, res) => {
   try {
     const { uid } = req.params;
@@ -58,7 +53,7 @@ app.post('/api/users/:uid', async (req, res) => {
   }
 });
 
-// Отримати профіль
+
 app.get('/api/users/:uid', async (req, res) => {
   try {
     const doc = await db.collection('users').doc(req.params.uid).get();
@@ -69,9 +64,7 @@ app.get('/api/users/:uid', async (req, res) => {
   }
 });
 
-// --- 2. РЕЦЕПТИ (Загальні) ---
 
-// Отримати всі рецепти
 app.get('/api/recipes', async (req, res) => {
   try {
     const snapshot = await db.collection('recipes')
@@ -85,7 +78,7 @@ app.get('/api/recipes', async (req, res) => {
   }
 });
 
-// Додати свій рецепт з валідацією
+
 app.post('/api/recipes', async (req, res) => {
   try {
     const {
@@ -100,7 +93,7 @@ app.post('/api/recipes', async (req, res) => {
       authorName,
     } = req.body;
 
-    // Валідація обов'язкових полів
+
     if (!name || name.trim().length < 3) {
       return res.status(400).json({ error: 'Recipe name must be at least 3 characters' });
     }
@@ -123,7 +116,7 @@ app.post('/api/recipes', async (req, res) => {
       return res.status(400).json({ error: 'Author information is required' });
     }
 
-    // Створюємо рецепт з валідованими даними
+
     const recipe = {
       name: name.trim(),
       description: description.trim(),
@@ -148,7 +141,7 @@ app.post('/api/recipes', async (req, res) => {
       tags: req.body.tags || [],
       likes: 0,
       comments: [],
-      status: 'pending', // Завжди pending для нових рецептів - потребує модерації
+      status: 'pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -161,7 +154,7 @@ app.post('/api/recipes', async (req, res) => {
   }
 });
 
-// Оновити статус рецепту (для модерації)
+
 app.put('/api/recipes/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
@@ -181,7 +174,7 @@ app.put('/api/recipes/:id/status', async (req, res) => {
       updatedAt: new Date().toISOString(),
     });
     
-    // Створити нотифікацію для автора про зміну статусу
+
     const recipeData = recipeDoc.data();
     if (recipeData.authorId) {
       const statusMessages = {
@@ -208,7 +201,7 @@ app.put('/api/recipes/:id/status', async (req, res) => {
   }
 });
 
-// Додати коментар до рецепту
+
 app.post('/api/recipes/:id/comments', async (req, res) => {
   try {
     const recipeRef = db.collection('recipes').doc(req.params.id);
@@ -236,7 +229,7 @@ app.post('/api/recipes/:id/comments', async (req, res) => {
   }
 });
 
-// Лайкнути рецепт
+
 app.post('/api/recipes/:id/like', async (req, res) => {
   try {
     const recipeRef = db.collection('recipes').doc(req.params.id);
@@ -255,7 +248,7 @@ app.post('/api/recipes/:id/like', async (req, res) => {
       updatedAt: new Date().toISOString(),
     });
     
-    // Створити нотифікацію для автора рецепту про лайк
+
     if (authorId && req.body.userId && authorId !== req.body.userId) {
       await db.collection('notifications').add({
         userId: authorId,
@@ -274,9 +267,7 @@ app.post('/api/recipes/:id/like', async (req, res) => {
   }
 });
 
-// --- 3. ПЛАНИ ХАРЧУВАННЯ (Прив'язані до користувача) ---
 
-// Отримати всі плани користувача
 app.get('/api/plans/:uid', async (req, res) => {
   try {
     const snapshot = await db.collection('plans')
@@ -290,7 +281,7 @@ app.get('/api/plans/:uid', async (req, res) => {
   }
 });
 
-// Отримати поточний план користувача
+
 app.get('/api/plans/:uid/current', async (req, res) => {
   try {
     const snapshot = await db.collection('plans')
@@ -310,7 +301,7 @@ app.get('/api/plans/:uid/current', async (req, res) => {
   }
 });
 
-// Створити новий план
+
 app.post('/api/plans', async (req, res) => {
   try {
     const plan = {
@@ -319,7 +310,7 @@ app.post('/api/plans', async (req, res) => {
       updatedAt: new Date().toISOString(),
     };
     
-    // Якщо це поточний план, знімаємо прапорець з інших
+
     if (plan.isCurrent) {
       const snapshot = await db.collection('plans')
         .where('userId', '==', plan.userId)
@@ -335,7 +326,7 @@ app.post('/api/plans', async (req, res) => {
     
     const resDb = await db.collection('plans').add(plan);
     
-    // Створити нотифікацію про генерацію нового меню
+
     if (plan.userId) {
       await db.collection('notifications').add({
         userId: plan.userId,
@@ -354,7 +345,7 @@ app.post('/api/plans', async (req, res) => {
   }
 });
 
-// Оновити план
+
 app.put('/api/plans/:id', async (req, res) => {
   try {
     const data = {
@@ -362,7 +353,7 @@ app.put('/api/plans/:id', async (req, res) => {
       updatedAt: new Date().toISOString(),
     };
     
-    // Якщо встановлюємо як поточний, знімаємо з інших
+
     if (data.isCurrent) {
       const planDoc = await db.collection('plans').doc(req.params.id).get();
       const userId = planDoc.data().userId;
@@ -388,7 +379,7 @@ app.put('/api/plans/:id', async (req, res) => {
   }
 });
 
-// Видалити план
+
 app.delete('/api/plans/:id', async (req, res) => {
   try {
     await db.collection('plans').doc(req.params.id).delete();
@@ -398,9 +389,7 @@ app.delete('/api/plans/:id', async (req, res) => {
   }
 });
 
-// --- 4. СПИСКИ ПОКУПОК ---
 
-// Отримати список покупок користувача
 app.get('/api/shopping-list/:uid', async (req, res) => {
   try {
     const doc = await db.collection('shoppingLists').doc(req.params.uid).get();
@@ -413,7 +402,7 @@ app.get('/api/shopping-list/:uid', async (req, res) => {
   }
 });
 
-// Зберегти список покупок
+
 app.post('/api/shopping-list', async (req, res) => {
   try {
     const list = {
@@ -434,7 +423,7 @@ app.post('/api/shopping-list', async (req, res) => {
       await listRef.set(list);
     }
     
-    // Створити нотифікацію про створення/оновлення списку покупок
+
     if (userId) {
       await db.collection('notifications').add({
         userId: userId,
@@ -452,9 +441,7 @@ app.post('/api/shopping-list', async (req, res) => {
   }
 });
 
-// --- 5. НОТИФІКАЦІЇ ---
 
-// Отримати всі нотифікації користувача
 app.get('/api/notifications/:userId', async (req, res) => {
   try {
     const snapshot = await db.collection('notifications')
@@ -469,7 +456,7 @@ app.get('/api/notifications/:userId', async (req, res) => {
   }
 });
 
-// Створити нову нотифікацію
+
 app.post('/api/notifications', async (req, res) => {
   try {
     const notification = {
@@ -484,7 +471,7 @@ app.post('/api/notifications', async (req, res) => {
   }
 });
 
-// Позначити нотифікацію як прочитану
+
 app.put('/api/notifications/:userId/:notificationId/read', async (req, res) => {
   try {
     await db.collection('notifications').doc(req.params.notificationId).update({
@@ -497,7 +484,7 @@ app.put('/api/notifications/:userId/:notificationId/read', async (req, res) => {
   }
 });
 
-// Позначити всі нотифікації як прочитані
+
 app.put('/api/notifications/:userId/read-all', async (req, res) => {
   try {
     const snapshot = await db.collection('notifications')
@@ -520,16 +507,14 @@ app.put('/api/notifications/:userId/read-all', async (req, res) => {
   }
 });
 
-// --- 6. ПОРАДИ ВООЗ ---
 
-// Отримати поради ВООЗ для користувача
 app.get('/api/who-advice/:userId', async (req, res) => {
   try {
-    // Отримати профіль користувача для персоналізації
+
     const userDoc = await db.collection('users').doc(req.params.userId).get();
     const userData = userDoc.exists ? userDoc.data() : {};
     
-    // Отримати всі поради ВООЗ
+
     const snapshot = await db.collection('whoAdvice')
       .where('status', '==', 'active')
       .orderBy('priority', 'desc')
@@ -537,7 +522,7 @@ app.get('/api/who-advice/:userId', async (req, res) => {
     
     let advice = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     
-    // Фільтрувати на основі потреб користувача
+
     if (userData.dietaryPreference) {
       advice = advice.filter(a => 
         !a.dietaryRestrictions || 
@@ -552,7 +537,7 @@ app.get('/api/who-advice/:userId', async (req, res) => {
   }
 });
 
-// Створити/оновити пораду ВООЗ (для адміністраторів)
+
 app.post('/api/who-advice', async (req, res) => {
   try {
     const advice = {
@@ -569,9 +554,7 @@ app.post('/api/who-advice', async (req, res) => {
   }
 });
 
-// --- 7. ПРОФІЛЬ КОРИСТУВАЧА - ПОШИРЕНІ РЕЦЕПТИ ---
 
-// Отримати поширені рецепти користувача
 app.get('/api/users/:uid/shared-recipes', async (req, res) => {
   try {
     const snapshot = await db.collection('recipes')
@@ -586,7 +569,7 @@ app.get('/api/users/:uid/shared-recipes', async (req, res) => {
   }
 });
 
-// Додати рецепт до профілю користувача (поширення)
+
 app.post('/api/users/:uid/share-recipe', async (req, res) => {
   try {
     const { recipeId } = req.body;
@@ -614,5 +597,4 @@ app.post('/api/users/:uid/share-recipe', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 GohanFlow Server running on http://localhost:${PORT}`);
 });

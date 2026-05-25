@@ -1,4 +1,4 @@
-// GohanFlow Mock Data - Comprehensive meal, recipe, and health data
+
 
 export interface Ingredient {
   name: string;
@@ -98,7 +98,7 @@ export interface UserProfile {
   healthData: HealthData;
 }
 
-// Comprehensive meal database
+
 export const MEALS: Meal[] = [
   {
     id: 'b1', name: 'Avocado Toast with Eggs', type: 'breakfast',
@@ -274,7 +274,7 @@ export const MEALS: Meal[] = [
   },
 ];
 
-// Recipe database with community features
+
 export const RECIPES: Recipe[] = [
   {
     id: 'r1',
@@ -351,7 +351,7 @@ export const RECIPES: Recipe[] = [
   },
 ];
 
-// Dietary preferences
+
 export const DIETARY_PREFERENCES = [
   { id: 'none', label: 'No restrictions', description: 'Include all meal types' },
   { id: 'vegetarian', label: 'Vegetarian', description: 'No meat or fish' },
@@ -363,7 +363,7 @@ export const DIETARY_PREFERENCES = [
   { id: 'keto', label: 'Keto', description: 'Very low carb, high fat' },
 ];
 
-// Calorie goal presets
+
 export const CALORIE_GOALS = [
   { id: 'lose', label: 'Weight Loss', calories: 1500, description: '1,500 cal/day' },
   { id: 'maintain', label: 'Maintenance', calories: 2000, description: '2,000 cal/day' },
@@ -371,7 +371,7 @@ export const CALORIE_GOALS = [
   { id: 'custom', label: 'Custom', calories: 0, description: 'Set your own goal' },
 ];
 
-// WHO-inspired health recommendations
+
 export const HEALTH_RECOMMENDATIONS = {
   vitaminD: {
     low: { threshold: 20, message: 'Consider foods rich in Vitamin D like fatty fish, egg yolks, and fortified foods. Sun exposure also helps.' },
@@ -391,14 +391,14 @@ export const HEALTH_RECOMMENDATIONS = {
   },
 };
 
-// Sample notifications
+
 export const SAMPLE_NOTIFICATIONS: Notification[] = [
   { id: 'n1', type: 'meal', title: 'Lunch Reminder', message: 'Time for your Mediterranean Quinoa Bowl!', read: false, createdAt: new Date().toISOString() },
   { id: 'n2', type: 'shopping', title: 'Shopping List Ready', message: 'Your weekly shopping list has been generated.', read: false, createdAt: new Date(Date.now() - 3600000).toISOString() },
   { id: 'n3', type: 'health', title: 'Health Tip', message: 'Consider adding more leafy greens for iron intake.', read: true, createdAt: new Date(Date.now() - 86400000).toISOString() },
 ];
 
-// Helper functions
+
 export const filterMealsByPreference = (meals: Meal[], preference: string): Meal[] => {
   if (preference === 'none') return meals;
   return meals.filter(meal => meal.tags.includes(preference));

@@ -46,7 +46,6 @@ const Navbar = () => {
   return <nav className="sticky top-0 z-50 w-full bg-card/95 backdrop-blur-md border-b border-border">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
           <Link to={user ? '/dashboard' : '/'} className="flex items-center gap-2 group">
             <img src={gohanflowLogo} alt="GohanFlow" className="w-10 h-10 shadow-soft group-hover:shadow-elevated transition-shadow rounded-md" />
             <span className="font-display text-xl font-semibold text-foreground">
@@ -54,7 +53,6 @@ const Navbar = () => {
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
           {user && <div className="hidden lg:flex items-center gap-1">
               {navItems.map(item => {
             const Icon = item.icon;
@@ -67,7 +65,6 @@ const Navbar = () => {
           })}
             </div>}
 
-          {/* User actions */}
           <div className="hidden md:flex items-center gap-2">
             {user ? <>
                 <NotificationCenter />
@@ -84,13 +81,11 @@ const Navbar = () => {
               </Link>}
           </div>
 
-          {/* Mobile menu button */}
           <button className="md:hidden p-2 rounded-lg hover:bg-accent transition-colors" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
 
-        {/* Mobile Navigation */}
         {mobileMenuOpen && <div className="md:hidden py-4 border-t border-border animate-fade-in">
             {user ? <div className="space-y-2">
                 {navItems.map(item => {

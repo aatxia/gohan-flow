@@ -45,7 +45,6 @@ export const getAllRecipes = async (): Promise<Recipe[]> => {
       };
     });
 
-    console.log(`✅ Завантажено ${recipes.length} рецептів з Firestore:`, recipes);
     return recipes;
 
   } catch (error) {
@@ -108,7 +107,6 @@ export const addRecipe = async (recipeData: {
 
     const docRef = await addDoc(recipesCollection, firestoreData);
     
-    console.log("✅ Рецепт додано до Firestore з ID:", docRef.id);
     
     return {
       id: docRef.id,
@@ -169,7 +167,6 @@ export const addCommentToRecipe = async (recipeId: string, commentData: {
       comments: arrayUnion(newComment),
     });
 
-    console.log("✅ Коментар додано до рецепту:", recipeId);
     
     return newComment;
   } catch (error) {
@@ -204,14 +201,12 @@ export const toggleLike = async (recipeId: string, userId: string) => {
         likes: increment(-1),
         likedBy: arrayRemove(userId)
       });
-      console.log("✅ Лайк видалено:", recipeId);
       return { likes: (data.likes || 0) - 1, isLiked: false };
     } else {
       await updateDoc(recipeRef, {
         likes: increment(1),
         likedBy: arrayUnion(userId)
       });
-      console.log("✅ Рецепт лайкнуто:", recipeId);
       return { likes: (data.likes || 0) + 1, isLiked: true };
     }
   } catch (error) {
@@ -250,7 +245,6 @@ export const shareRecipe = async (userId: string, recipeId: string) => {
       });
     }
 
-    console.log("✅ Рецепт поширено в профілі користувача:", userId);
     
     return { success: true };
   } catch (error) {

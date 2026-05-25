@@ -14,7 +14,7 @@ const NotificationCenter = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
-  // Завантажити нотифікації при відкритті або зміні користувача
+
   useEffect(() => {
     const loadNotifications = async () => {
       if (!user?.id) {
@@ -40,22 +40,22 @@ const NotificationCenter = () => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const markAsRead = async (id: string) => {
-    // Оптимістичне оновлення UI
+
     setNotifications(prev => prev.map(n =>
       n.id === id ? { ...n, read: true } : n
     ));
 
-    // Оновити в базі даних
+
     if (user?.id) {
       await markNotificationAsRead(user.id, id);
     }
   };
 
   const handleMarkAllAsRead = async () => {
-    // Оптимістичне оновлення UI
+
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
 
-    // Оновити в базі даних
+
     if (user?.id) {
       await markAllNotificationsAsRead(user.id);
     }
