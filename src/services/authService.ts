@@ -76,7 +76,7 @@ export const AuthService = {
       
       return { user, profile: userProfile };
     } catch (error) {
-      console.error("❌ Помилка реєстрації:", error);
+      console.error("Помилка реєстрації:", error);
       throw error;
     }
   },

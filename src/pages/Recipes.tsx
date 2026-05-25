@@ -15,9 +15,9 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAllRecipes, getRecipeById, addRecipe, addCommentToRecipe, likeRecipe, shareRecipe } from '@/services/recipeService';
+import { getAllRecipes, getRecipeById, addRecipe, addCommentToRecipe, likeRecipe, getUserLikedRecipeIds, shareRecipe } from '@/services/recipeService';
 import { getProfile } from '@/services/profileService';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Bookmark } from 'lucide-react';
 
 const ALLERGY_KEYWORDS: Record<string, string[]> = {
   'Peanuts': ['peanut', 'peanuts', 'groundnut'],
@@ -73,28 +73,35 @@ const Recipes = () => {
       }
     };
 
-    const loadAllergies = async () => {
+    const loadUserData = async () => {
       if (!user?.id) return;
       try {
-        const profile = await getProfile(user.id);
+        const [profile, liked] = await Promise.all([
+          getProfile(user.id),
+          getUserLikedRecipeIds(user.id),
+        ]);
         if (profile?.allergies && Array.isArray(profile.allergies)) {
           setUserAllergies(profile.allergies);
         }
+        setLikedRecipes(liked);
       } catch (error) {
-        console.error('Failed to load allergies:', error);
+        console.error('Failed to load user data:', error);
       }
     };
 
     loadRecipes();
-    loadAllergies();
+    loadUserData();
   }, [user]);
 
 
   const filteredRecipes = recipes.filter(recipe => {
+    if (recipe.status !== 'published') return false;
     const matchesSearch = recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       recipe.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesType = selectedType === 'all' || recipe.type === selectedType;
-    return matchesSearch && matchesType && recipe.status === 'published';
+    if (!matchesSearch) return false;
+    if (selectedType === 'saved') return likedRecipes.has(recipe.id);
+    if (selectedType === 'all') return true;
+    return recipe.type === selectedType;
   });
 
 
@@ -119,7 +126,15 @@ const Recipes = () => {
           setSelectedRecipe(prev => prev ? { ...prev, likes: result.likes } : null);
         }
         
-        setLikedRecipes(prev => new Set(prev).add(recipeId));
+        setLikedRecipes(prev => {
+          const next = new Set(prev);
+          if (result.isLiked) {
+            next.add(recipeId);
+          } else {
+            next.delete(recipeId);
+          }
+          return next;
+        });
       }
     } catch (error) {
       console.error('Failed to like recipe:', error);
@@ -387,6 +402,12 @@ const Recipes = () => {
               <TabsTrigger value="lunch">Lunch</TabsTrigger>
               <TabsTrigger value="dinner">Dinner</TabsTrigger>
               <TabsTrigger value="snack">Snack</TabsTrigger>
+              {user && (
+                <TabsTrigger value="saved" className="gap-1">
+                  <Bookmark className="w-3 h-3" />
+                  Saved ({likedRecipes.size})
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
         </div>
@@ -602,8 +623,9 @@ const Recipes = () => {
                                   placeholder="Add a comment..."
                                   value={newComment}
                                   onChange={(e) => setNewComment(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' && newComment.trim()) addComment(); }}
                                 />
-                                <Button size="icon" onClick={addComment}>
+                                <Button size="icon" onClick={addComment} disabled={!newComment.trim()}>
                                   <Send className="w-4 h-4" />
                                 </Button>
                               </div>
@@ -613,13 +635,25 @@ const Recipes = () => {
           </DialogContent>
         </Dialog>
 
-        {filteredRecipes.length === 0 && (
+        {filteredRecipes.length === 0 && !isLoading && (
           <Card variant="glass" className="p-12 text-center">
-            <ChefHat className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-display text-lg font-medium text-foreground mb-2">
-              No recipes found
-            </h3>
-            <p className="text-muted-foreground">Try adjusting your search or filters</p>
+            {selectedType === 'saved' ? (
+              <>
+                <Bookmark className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="font-display text-lg font-medium text-foreground mb-2">
+                  No saved recipes yet
+                </h3>
+                <p className="text-muted-foreground">Like recipes to save them here</p>
+              </>
+            ) : (
+              <>
+                <ChefHat className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="font-display text-lg font-medium text-foreground mb-2">
+                  No recipes found
+                </h3>
+                <p className="text-muted-foreground">Try adjusting your search or filters</p>
+              </>
+            )}
           </Card>
         )}
       </main>

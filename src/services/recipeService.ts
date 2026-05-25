@@ -1,9 +1,8 @@
-import { collection, getDocs, addDoc, doc, updateDoc, getDoc, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, getDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
 import { db } from '@/config/firebaseConfig';
 import { type Recipe } from '@/data/mockData';
 
 const RECIPES_COLLECTION = 'recipes';
-const API_URL = 'http://localhost:5000/api';
 export const getAllRecipes = async (): Promise<Recipe[]> => {
   try {
     if (!db) {
@@ -191,39 +190,79 @@ export const addCommentToRecipe = async (recipeId: string, commentData: {
   content: string;
 }) => {
   try {
-    const response = await fetch(`${API_URL}/recipes/${recipeId}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(commentData),
+    if (!db) return null;
+
+    const recipeRef = doc(db, RECIPES_COLLECTION, recipeId);
+    const recipeSnap = await getDoc(recipeRef);
+    if (!recipeSnap.exists()) return null;
+
+    const newComment = {
+      id: `c${Date.now()}`,
+      ...commentData,
+      createdAt: new Date().toISOString(),
+    };
+
+    await updateDoc(recipeRef, {
+      comments: arrayUnion(newComment),
     });
 
-    if (!response.ok) {
-      throw new Error('Failed to add comment');
-    }
-
-    return await response.json();
+    return newComment;
   } catch (error) {
     console.error("Failed to add comment:", error);
     return null;
   }
 };
 
-export const likeRecipe = async (recipeId: string, userId: string) => {
+export const likeRecipe = async (recipeId: string, userId: string): Promise<{ likes: number; isLiked: boolean } | null> => {
   try {
-    const response = await fetch(`${API_URL}/recipes/${recipeId}/like`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId }),
-    });
+    if (!db || !userId) return null;
 
-    if (!response.ok) {
-      throw new Error('Failed to like recipe');
+    const recipeRef = doc(db, RECIPES_COLLECTION, recipeId);
+    const recipeSnap = await getDoc(recipeRef);
+    if (!recipeSnap.exists()) return null;
+
+    const data = recipeSnap.data();
+    const likedBy: string[] = data.likedBy || [];
+    const hasLiked = likedBy.includes(userId);
+
+    if (hasLiked) {
+      await updateDoc(recipeRef, {
+        likes: increment(-1),
+        likedBy: arrayRemove(userId),
+      });
+      return { likes: Math.max((data.likes || 0) - 1, 0), isLiked: false };
+    } else {
+      await updateDoc(recipeRef, {
+        likes: increment(1),
+        likedBy: arrayUnion(userId),
+      });
+      return { likes: (data.likes || 0) + 1, isLiked: true };
     }
-
-    return await response.json();
   } catch (error) {
     console.error("Failed to like recipe:", error);
     return null;
+  }
+};
+
+export const getUserLikedRecipeIds = async (userId: string): Promise<Set<string>> => {
+  try {
+    if (!db) return new Set();
+
+    const recipesCollection = collection(db, RECIPES_COLLECTION);
+    const querySnapshot = await getDocs(recipesCollection);
+    const likedIds = new Set<string>();
+
+    querySnapshot.docs.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.likedBy && Array.isArray(data.likedBy) && data.likedBy.includes(userId)) {
+        likedIds.add(docSnap.id);
+      }
+    });
+
+    return likedIds;
+  } catch (error) {
+    console.error("Failed to get liked recipes:", error);
+    return new Set();
   }
 };
 
