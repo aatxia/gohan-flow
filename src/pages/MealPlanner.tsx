@@ -26,6 +26,32 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getCurrentMealPlan, saveMealPlan } from '@/services/mealPlanService';
 import { createNotification } from '@/services/notificationService';
 import { getAllRecipes } from '@/services/recipeService';
+import { getProfile } from '@/services/profileService';
+
+const ALLERGY_KEYWORDS: Record<string, string[]> = {
+  'Peanuts': ['peanut', 'peanuts', 'groundnut'],
+  'Tree Nuts': ['almond', 'cashew', 'walnut', 'pecan', 'pistachio', 'macadamia', 'hazelnut', 'brazil nut', 'pine nut', 'chestnut', 'nuts'],
+  'Milk': ['milk', 'cheese', 'butter', 'cream', 'yogurt', 'yoghurt', 'whey', 'casein', 'dairy', 'mozzarella', 'parmesan', 'cheddar', 'feta', 'ricotta', 'ghee'],
+  'Eggs': ['egg', 'eggs', 'mayonnaise', 'mayo'],
+  'Wheat': ['wheat', 'flour', 'bread', 'pasta', 'noodle', 'noodles', 'couscous', 'tortilla', 'cracker', 'breadcrumb', 'pita', 'baguette', 'croissant'],
+  'Soy': ['soy', 'soya', 'tofu', 'tempeh', 'edamame', 'miso', 'soy sauce'],
+  'Fish': ['fish', 'salmon', 'tuna', 'cod', 'tilapia', 'sardine', 'anchovy', 'bass', 'trout', 'mackerel', 'halibut', 'swordfish', 'catfish'],
+  'Shellfish': ['shrimp', 'prawn', 'crab', 'lobster', 'clam', 'mussel', 'oyster', 'scallop', 'squid', 'octopus', 'crawfish', 'shellfish'],
+  'Sesame': ['sesame', 'tahini'],
+};
+
+function mealContainsAllergen(meal: Meal, userAllergies: string[]): boolean {
+  if (!userAllergies.length) return false;
+  const ingredientText = meal.ingredients.map(i => i.name.toLowerCase()).join(' ');
+  const combined = `${meal.name.toLowerCase()} ${ingredientText}`;
+  for (const allergy of userAllergies) {
+    const keywords = ALLERGY_KEYWORDS[allergy];
+    if (keywords && keywords.some(kw => combined.includes(kw))) {
+      return true;
+    }
+  }
+  return false;
+}
 
 
 interface DayPlan {
@@ -53,6 +79,7 @@ const MealPlanner = () => {
   const [availableRecipes, setAvailableRecipes] = useState<Recipe[]>([]);
   const [selectedRecipes, setSelectedRecipes] = useState<Set<string>>(new Set());
   const [showRecipeSelector, setShowRecipeSelector] = useState(false);
+  const [userAllergies, setUserAllergies] = useState<string[]>([]);
 
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -90,6 +117,20 @@ const MealPlanner = () => {
     };
     
     loadRecipes();
+
+    const loadAllergies = async () => {
+      if (!user?.id) return;
+      try {
+        const profile = await getProfile(user.id);
+        if (profile?.allergies && Array.isArray(profile.allergies)) {
+          setUserAllergies(profile.allergies);
+        }
+      } catch (error) {
+        console.error('Failed to load allergies:', error);
+      }
+    };
+
+    loadAllergies();
   }, [user]);
 
 
@@ -146,7 +187,8 @@ const MealPlanner = () => {
     const filteredMeals = filterMealsByPreference(MEALS, preferences.dietaryPreference);
     
 
-    const allAvailableMeals = [...allRecipeMeals, ...filteredMeals];
+    const allAvailableMeals = [...allRecipeMeals, ...filteredMeals]
+      .filter(meal => !mealContainsAllergen(meal, userAllergies));
     
     
 
@@ -155,7 +197,8 @@ const MealPlanner = () => {
       : preferences.budget;
 
 
-    const selectedMealsPool = [...selectedRecipeMeals];
+    const selectedMealsPool = selectedRecipeMeals
+      .filter(meal => !mealContainsAllergen(meal, userAllergies));
     const selectedMealsUsed = new Set<string>();
 
 

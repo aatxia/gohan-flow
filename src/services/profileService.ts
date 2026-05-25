@@ -1,18 +1,5 @@
-const API_URL = 'http://localhost:5000/api/users';
-
-export const getProfile = async (userId: string) => {
-  try {
-    const response = await fetch(`${API_URL}/${userId}`);
-    if (!response.ok) {
-      throw new Error('Помилка при завантаженні профілю');
-    }
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-};
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { db } from '@/config/firebaseConfig';
 
 export interface ProfileData {
   userId: string;
@@ -27,32 +14,57 @@ export interface ProfileData {
   allergies?: string[];
 }
 
-export const saveProfile = async (profileData: ProfileData) => {
+const PROFILE_FIELDS: (keyof Omit<ProfileData, 'userId'>)[] = [
+  'name', 'email', 'age', 'dietaryPreference', 'calorieGoal',
+  'budgetDaily', 'budgetPeriod', 'mealsPerDay', 'allergies',
+];
+
+export const getProfile = async (userId: string) => {
   try {
-    const { userId, ...userData } = profileData;
-    
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-    
-    const response = await fetch(`${API_URL}/${userId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userData),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Profile save error:', errorText);
-      throw new Error(`Помилка при збереженні профілю: ${errorText}`);
-    }
-    
-    return await response.json();
+    if (!db) return null;
+
+    const userRef = doc(db, 'users', userId);
+    const snap = await getDoc(userRef);
+
+    if (!snap.exists()) return null;
+
+    return snap.data() as Record<string, unknown>;
   } catch (error) {
-    console.error('Profile save error:', error);
+    console.error('Failed to load profile:', error);
     return null;
   }
 };
 
+export const saveProfile = async (profileData: ProfileData) => {
+  try {
+    if (!db) return null;
+
+    const { userId, ...rest } = profileData;
+    if (!userId) throw new Error('User ID is required');
+
+    const dataToSave: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    for (const key of PROFILE_FIELDS) {
+      if (rest[key] !== undefined) {
+        dataToSave[key] = rest[key];
+      }
+    }
+
+    const userRef = doc(db, 'users', userId);
+    const snap = await getDoc(userRef);
+
+    if (snap.exists()) {
+      await updateDoc(userRef, dataToSave);
+    } else {
+      dataToSave.createdAt = new Date().toISOString();
+      await setDoc(userRef, dataToSave);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to save profile:', error);
+    return null;
+  }
+};

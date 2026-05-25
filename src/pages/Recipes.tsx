@@ -15,7 +15,37 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAllRecipes, addRecipe, addCommentToRecipe, likeRecipe, shareRecipe } from '@/services/recipeService';
+import { getAllRecipes, getRecipeById, addRecipe, addCommentToRecipe, likeRecipe, shareRecipe } from '@/services/recipeService';
+import { getProfile } from '@/services/profileService';
+import { AlertTriangle } from 'lucide-react';
+
+const ALLERGY_KEYWORDS: Record<string, string[]> = {
+  'Peanuts': ['peanut', 'peanuts', 'groundnut'],
+  'Tree Nuts': ['almond', 'cashew', 'walnut', 'pecan', 'pistachio', 'macadamia', 'hazelnut', 'brazil nut', 'pine nut', 'chestnut', 'nuts'],
+  'Milk': ['milk', 'cheese', 'butter', 'cream', 'yogurt', 'yoghurt', 'whey', 'casein', 'dairy', 'mozzarella', 'parmesan', 'cheddar', 'feta', 'ricotta', 'ghee'],
+  'Eggs': ['egg', 'eggs', 'mayonnaise', 'mayo'],
+  'Wheat': ['wheat', 'flour', 'bread', 'pasta', 'noodle', 'noodles', 'couscous', 'tortilla', 'cracker', 'breadcrumb', 'pita', 'baguette', 'croissant'],
+  'Soy': ['soy', 'soya', 'tofu', 'tempeh', 'edamame', 'miso', 'soy sauce'],
+  'Fish': ['fish', 'salmon', 'tuna', 'cod', 'tilapia', 'sardine', 'anchovy', 'bass', 'trout', 'mackerel', 'halibut', 'swordfish', 'catfish'],
+  'Shellfish': ['shrimp', 'prawn', 'crab', 'lobster', 'clam', 'mussel', 'oyster', 'scallop', 'squid', 'octopus', 'crawfish', 'shellfish'],
+  'Sesame': ['sesame', 'tahini'],
+};
+
+function detectAllergens(recipe: Recipe, userAllergies: string[]): string[] {
+  if (!userAllergies.length) return [];
+  const found: string[] = [];
+  const ingredientText = recipe.ingredients.map(i => i.name.toLowerCase()).join(' ');
+  const nameText = recipe.name.toLowerCase();
+  const combined = `${nameText} ${ingredientText}`;
+
+  for (const allergy of userAllergies) {
+    const keywords = ALLERGY_KEYWORDS[allergy];
+    if (keywords && keywords.some(kw => combined.includes(kw))) {
+      found.push(allergy);
+    }
+  }
+  return found;
+}
 
 const Recipes = () => {
   const { user } = useAuth();
@@ -27,24 +57,37 @@ const Recipes = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [likedRecipes, setLikedRecipes] = useState<Set<string>>(new Set());
+  const [userAllergies, setUserAllergies] = useState<string[]>([]);
 
 
   useEffect(() => {
     const loadRecipes = async () => {
       try {
         const loadedRecipes = await getAllRecipes();
-
         setRecipes(loadedRecipes);
       } catch (error) {
-        console.error('Помилка завантаження рецептів:', error);
+        console.error('Failed to load recipes:', error);
         setRecipes([]);
       } finally {
         setIsLoading(false);
       }
     };
 
+    const loadAllergies = async () => {
+      if (!user?.id) return;
+      try {
+        const profile = await getProfile(user.id);
+        if (profile?.allergies && Array.isArray(profile.allergies)) {
+          setUserAllergies(profile.allergies);
+        }
+      } catch (error) {
+        console.error('Failed to load allergies:', error);
+      }
+    };
+
     loadRecipes();
-  }, []);
+    loadAllergies();
+  }, [user]);
 
 
   const filteredRecipes = recipes.filter(recipe => {
@@ -68,11 +111,9 @@ const Recipes = () => {
     try {
       const result = await likeRecipe(recipeId, user.id);
       if (result) {
-
         setRecipes(prev => prev.map(r => 
           r.id === recipeId ? { ...r, likes: result.likes } : r
         ));
-        
 
         if (selectedRecipe?.id === recipeId) {
           setSelectedRecipe(prev => prev ? { ...prev, likes: result.likes } : null);
@@ -81,7 +122,7 @@ const Recipes = () => {
         setLikedRecipes(prev => new Set(prev).add(recipeId));
       }
     } catch (error) {
-      console.error('Помилка лайкування:', error);
+      console.error('Failed to like recipe:', error);
     }
   };
 
@@ -126,18 +167,24 @@ const Recipes = () => {
       });
 
       if (comment) {
-
-        setRecipes(prev => prev.map(r => 
-          r.id === selectedRecipe.id 
-            ? { ...r, comments: [...r.comments, comment] }
-            : r
-        ));
-        setSelectedRecipe(prev => prev ? { ...prev, comments: [...prev.comments, comment] } : null);
         setNewComment('');
         toast({ title: 'Comment added!' });
+
+        const fresh = await getRecipeById(selectedRecipe.id);
+        if (fresh) {
+          setSelectedRecipe(fresh);
+          setRecipes(prev => prev.map(r => r.id === fresh.id ? fresh : r));
+        } else {
+          setRecipes(prev => prev.map(r => 
+            r.id === selectedRecipe.id 
+              ? { ...r, comments: [...r.comments, comment] }
+              : r
+          ));
+          setSelectedRecipe(prev => prev ? { ...prev, comments: [...prev.comments, comment] } : null);
+        }
       }
     } catch (error) {
-      console.error('Помилка додавання коментаря:', error);
+      console.error('Failed to add comment:', error);
       toast({
         title: 'Error',
         description: 'Failed to add comment. Please try again.',
@@ -350,24 +397,45 @@ const Recipes = () => {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRecipes.map((recipe) => (
+            {filteredRecipes.map((recipe) => {
+              const allergens = detectAllergens(recipe, userAllergies);
+              return (
             <Card 
               key={recipe.id} 
               variant="meal" 
-              className="cursor-pointer group"
-              onClick={() => {
+              className={`cursor-pointer group ${allergens.length > 0 ? 'ring-2 ring-amber-400/60' : ''}`}
+              onClick={async () => {
                 setSelectedRecipe(recipe);
                 setIsDialogOpen(true);
+                const fresh = await getRecipeById(recipe.id);
+                if (fresh) {
+                  setSelectedRecipe(fresh);
+                  setRecipes(prev => prev.map(r => r.id === fresh.id ? fresh : r));
+                }
               }}
             >
               <div className="h-40 bg-gradient-to-br from-primary/20 to-accent relative">
                 <Badge className="absolute top-3 left-3 capitalize">{recipe.type}</Badge>
+                {allergens.length > 0 && (
+                  <Badge className="absolute top-3 right-3 bg-amber-500 text-white hover:bg-amber-600 gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    Allergens
+                  </Badge>
+                )}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <ChefHat className="w-16 h-16 text-primary/30" />
                 </div>
               </div>
 
               <CardContent className="p-4">
+                {allergens.length > 0 && (
+                  <div className="flex items-center gap-2 mb-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span className="text-xs text-amber-700 dark:text-amber-400">
+                      Contains: {allergens.join(', ')}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-display font-semibold text-foreground line-clamp-1">
                     {recipe.name}
@@ -418,7 +486,7 @@ const Recipes = () => {
                       className="flex items-center gap-1 hover:text-foreground transition-colors"
                     >
                       <Heart className={`w-3 h-3 ${likedRecipes.has(recipe.id) ? 'fill-destructive text-destructive' : ''}`} />
-                      {recipe.likes + (likedRecipes.has(recipe.id) ? 1 : 0)}
+                      {recipe.likes}
                     </button>
                     {user && (
                       <button
@@ -437,7 +505,8 @@ const Recipes = () => {
                 </div>
               </CardContent>
             </Card>
-          ))}
+              );
+            })}
           </div>
         )}
 
@@ -449,6 +518,20 @@ const Recipes = () => {
             
             {selectedRecipe && (
                           <div className="space-y-4">
+                            {(() => {
+                              const allergens = detectAllergens(selectedRecipe, userAllergies);
+                              return allergens.length > 0 ? (
+                                <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700">
+                                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="font-medium text-amber-800 dark:text-amber-300 text-sm">Allergy Warning</p>
+                                    <p className="text-sm text-amber-700 dark:text-amber-400">
+                                      This recipe contains allergens you are sensitive to: <strong>{allergens.join(', ')}</strong>
+                                    </p>
+                                  </div>
+                                </div>
+                              ) : null;
+                            })()}
                             <div className="space-y-3">
                               <p className="text-muted-foreground">{selectedRecipe.description}</p>
                               

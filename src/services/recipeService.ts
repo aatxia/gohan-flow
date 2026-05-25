@@ -1,8 +1,9 @@
-import { collection, getDocs, addDoc, doc, updateDoc, getDoc, arrayUnion, arrayRemove, increment, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, getDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/config/firebaseConfig';
 import { type Recipe } from '@/data/mockData';
 
 const RECIPES_COLLECTION = 'recipes';
+const API_URL = 'http://localhost:5000/api';
 export const getAllRecipes = async (): Promise<Recipe[]> => {
   try {
     if (!db) {
@@ -52,6 +53,52 @@ export const getAllRecipes = async (): Promise<Recipe[]> => {
     return [];
   }
 };
+
+export const getRecipeById = async (recipeId: string): Promise<Recipe | null> => {
+  try {
+    if (!db) return null;
+
+    const recipeRef = doc(db, RECIPES_COLLECTION, recipeId);
+    const docSnap = await getDoc(recipeRef);
+
+    if (!docSnap.exists()) return null;
+
+    const data = docSnap.data();
+    const validTypes: Recipe['type'][] = ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'];
+    const validStatuses: Recipe['status'][] = ['published', 'pending', 'draft'];
+    const mealType = data.type as Recipe['type'];
+    const status = data.status as Recipe['status'];
+
+    return {
+      id: docSnap.id,
+      name: data.name || data.title || '',
+      description: data.description || '',
+      type: validTypes.includes(mealType) ? mealType : 'dinner',
+      calories: data.calories || 0,
+      protein: data.protein || 0,
+      carbs: data.carbs || 0,
+      fat: data.fat || 0,
+      fiber: data.fiber || 0,
+      price: data.price || data.budgetPrice || 0,
+      ingredients: data.ingredients || [],
+      instructions: data.instructions || [],
+      prepTime: data.prepTime || 0,
+      cookTime: data.cookTime || data.cookingTime || 0,
+      servings: data.servings || 1,
+      tags: data.tags || [],
+      authorId: data.authorId || '',
+      authorName: data.authorName || '',
+      likes: data.likes || 0,
+      comments: data.comments || [],
+      status: validStatuses.includes(status) ? status : 'published',
+      createdAt: data.createdAt || new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error("Failed to get recipe:", error);
+    return null;
+  }
+};
+
 export const addRecipe = async (recipeData: {
   name: string;
   description: string;
@@ -144,80 +191,40 @@ export const addCommentToRecipe = async (recipeId: string, commentData: {
   content: string;
 }) => {
   try {
-    if (!db) {
-      console.error('❌ Firestore не ініціалізовано');
-      return null;
-    }
-
-    const recipeRef = doc(db, 'recipes', recipeId);
-    const recipeSnap = await getDoc(recipeRef);
-    
-    if (!recipeSnap.exists()) {
-      throw new Error('Рецепт не знайдено');
-    }
-
-    const newComment = {
-      id: Date.now().toString(),
-      ...commentData,
-      createdAt: new Date().toISOString(),
-    };
-
-    const currentComments = recipeSnap.data().comments || [];
-    await updateDoc(recipeRef, {
-      comments: arrayUnion(newComment),
+    const response = await fetch(`${API_URL}/recipes/${recipeId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(commentData),
     });
 
-    
-    return newComment;
+    if (!response.ok) {
+      throw new Error('Failed to add comment');
+    }
+
+    return await response.json();
   } catch (error) {
-    console.error("❌ Помилка при додаванні коментаря:", error);
-    return null;
-  }
-};
-
-export const toggleLike = async (recipeId: string, userId: string) => {
-  try {
-    if (!db) {
-      console.error('❌ Firestore не ініціалізовано');
-      return null;
-    }
-
-    if (!userId) {
-      throw new Error('Користувач не авторизований');
-    }
-
-    const recipeRef = doc(db, 'recipes', recipeId);
-    const recipeSnap = await getDoc(recipeRef);
-    
-    if (!recipeSnap.exists()) {
-      throw new Error('Рецепт не знайдено');
-    }
-
-    const data = recipeSnap.data();
-    const hasLiked = data.likedBy?.includes(userId) || false;
-
-    if (hasLiked) {
-      await updateDoc(recipeRef, {
-        likes: increment(-1),
-        likedBy: arrayRemove(userId)
-      });
-      return { likes: (data.likes || 0) - 1, isLiked: false };
-    } else {
-      await updateDoc(recipeRef, {
-        likes: increment(1),
-        likedBy: arrayUnion(userId)
-      });
-      return { likes: (data.likes || 0) + 1, isLiked: true };
-    }
-  } catch (error) {
-    console.error("❌ Помилка при лайкуванні:", error);
+    console.error("Failed to add comment:", error);
     return null;
   }
 };
 
 export const likeRecipe = async (recipeId: string, userId: string) => {
-  const result = await toggleLike(recipeId, userId);
-  return result ? { likes: result.likes } : null;
+  try {
+    const response = await fetch(`${API_URL}/recipes/${recipeId}/like`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to like recipe');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to like recipe:", error);
+    return null;
+  }
 };
 
 export const shareRecipe = async (userId: string, recipeId: string) => {
